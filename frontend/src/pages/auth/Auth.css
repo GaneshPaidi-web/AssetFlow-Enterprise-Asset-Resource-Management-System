@@ -1,0 +1,139 @@
+.auth-page-wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  background: #f7f5f8;
+  font-family: Inter, sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.auth-page-wrapper .left-panel {
+  width: 40%;
+  background: #5b4b63;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px;
+  box-sizing: border-box;
+}
+
+.auth-page-wrapper .left-panel h1 {
+  font-size: 48px;
+  margin: 0;
+}
+
+.auth-page-wrapper .left-panel p {
+  margin-top: 8px;
+  opacity: .8;
+  margin-bottom: 0;
+}
+
+.auth-page-wrapper .welcome {
+  margin-top: 80px;
+}
+
+.auth-page-wrapper .welcome h2 {
+  font-size: 34px;
+  margin-bottom: 15px;
+  margin-top: 0;
+  color: white;
+}
+
+.auth-page-wrapper .welcome p {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.auth-page-wrapper .right-panel {
+  width: 60%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  background: #f7f5f8;
+  box-sizing: border-box;
+  padding: 40px;
+}
+
+.auth-page-wrapper .right-panel h2 {
+  font-size: 34px;
+  margin-bottom: 30px;
+  color: #5b4b63;
+  margin-top: 0;
+}
+
+.auth-page-wrapper form {
+  width: 420px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-page-wrapper .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.auth-page-wrapper .input-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5b4b63;
+}
+
+.auth-page-wrapper input {
+  padding: 15px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  outline: none;
+  transition: .3s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.auth-page-wrapper input:focus {
+  border-color: #5b4b63;
+}
+
+.auth-page-wrapper button {
+  padding: 15px;
+  background: #5b4b63;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  cursor: pointer;
+  transition: .3s;
+  font-weight: bold;
+}
+
+.auth-page-wrapper button:hover {
+  background: #46384d;
+}
+
+.auth-page-wrapper .right-panel p {
+  margin-top: 20px;
+  color: #495057;
+}
+
+.auth-page-wrapper a {
+  color: #5b4b63;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-page-wrapper a:hover {
+  text-decoration: underline;
+}
+
+.auth-page-wrapper .error-message {
+  color: #dc3545;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}

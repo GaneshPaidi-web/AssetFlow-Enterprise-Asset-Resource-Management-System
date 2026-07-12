@@ -3,9 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
-import { Input } from '../../components/Input';
-import { Button } from '../../components/Button';
-import { Shield } from 'lucide-react';
+import './Auth.css';
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -32,59 +30,69 @@ export const Signup: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#e9ecef] flex items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-md bg-white border border-[#dee2e6] rounded-card p-8 shadow-custom text-center space-y-6">
-        {/* Brand */}
-        <div className="flex flex-col items-center gap-2 select-none">
-          <div className="w-12 h-12 bg-[#6c757d] rounded-btn flex items-center justify-center text-white shadow-inner">
-            <Shield className="w-6 h-6 stroke-[1.75]" />
-          </div>
-          <h2 className="text-2xl font-bold text-[#212529] tracking-tight m-0">AssetFlow ERP</h2>
-          <p className="text-[14px] text-[#6c757d] font-medium m-0">Register your organization account</p>
+    <div className="auth-page-wrapper">
+      <div className="left-panel">
+        <h1>AssetFlow</h1>
+        <p>Enterprise ERP</p>
+
+        <div className="welcome">
+          <h2>Create Account</h2>
+          <p>Create your account to access the ERP system.</p>
         </div>
+      </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Full Name"
-            placeholder="John Doe"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-          <Input
-            label="Email Address"
-            placeholder="name@company.com"
-            error={errors.email?.message}
-            {...register('email')}
-          />
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            error={errors.password?.message}
-            {...register('password')}
-          />
-          <Input
-            label="Confirm Password"
-            type="password"
-            placeholder="••••••••"
-            error={errors.confirmPassword?.message}
-            {...register('confirmPassword')}
-          />
+      <div className="right-panel">
+        <h2>Sign Up</h2>
 
-          <Button type="submit" loading={isSubmitting} variant="primary" className="w-full mt-2">
-            Create Account
-          </Button>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="input-group">
+            <label className="input-label">Full Name</label>
+            <input 
+              type="text" 
+              placeholder="Full Name" 
+              {...register('name')} 
+            />
+            {errors.name && <span className="error-message">{errors.name.message}</span>}
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Email Address</label>
+            <input 
+              type="email" 
+              placeholder="Email Address" 
+              {...register('email')} 
+            />
+            {errors.email && <span className="error-message">{errors.email.message}</span>}
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Password</label>
+            <input 
+              type="password" 
+              placeholder="Password" 
+              {...register('password')} 
+            />
+            {errors.password && <span className="error-message">{errors.password.message}</span>}
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Confirm Password</label>
+            <input 
+              type="password" 
+              placeholder="Confirm Password" 
+              {...register('confirmPassword')} 
+            />
+            {errors.confirmPassword && <span className="error-message">{errors.confirmPassword.message}</span>}
+          </div>
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating Account...' : 'Create Account'}
+          </button>
         </form>
 
-        <div className="border-t border-[#dee2e6] pt-4 select-none">
-          <p className="text-small text-[#6c757d] font-medium">
-            Already have an account?{' '}
-            <Link to="/login" className="text-[#6c757d] hover:text-[#212529] font-bold underline">
-              Log in here
-            </Link>
-          </p>
-        </div>
+        <p>
+          Already have an account? <Link to="/login">Sign In</Link>
+        </p>
       </div>
     </div>
   );
