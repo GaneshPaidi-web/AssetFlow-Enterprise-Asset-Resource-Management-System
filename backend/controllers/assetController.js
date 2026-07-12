@@ -15,14 +15,8 @@ exports.getAllAssets = async (req, res) => {
 exports.createAsset = async (req, res) => {
   try {
     const { name, serialNumber, category, department, purchaseValue, location, status } = req.body;
-    
-    // Generate sequential AST tag
-    const count = await prisma.asset.count();
-    const generatedId = `AST-${String(count + 1).padStart(3, '0')}`;
-
     const asset = await prisma.asset.create({
       data: {
-        id: generatedId,
         name,
         serialNumber,
         category,
