@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 17% 93%; /* #e9ecef */
+    --foreground: 210 10% 15%; /* #212529 */
+
+    --card: 0 0% 100%; /* #ffffff */
+    --card-foreground: 210 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 10% 15%;
+
+    --primary: 208 7% 46%; /* #6c757d */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 208 7% 38%; /* #5a6268 */
+
+    --secondary: 0 0% 100%; /* White */
+    --secondary-foreground: 210 10% 15%;
+
+    --muted: 208 7% 46%; /* #6c757d */
+    --muted-foreground: 208 7% 46%;
+
+    --accent: 210 17% 93%;
+    --accent-foreground: 210 10% 15%;
+
+    --destructive: 354 70% 54%; /* #dc3545 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 14% 83%; /* #ced4da */
+    --input: 210 14% 83%; /* #ced4da */
+    --ring: 208 7% 46%;
+
+    --divider: #dee2e6;
+
+    /* Custom Statuses */
+    --success: 152 69% 31%; /* #198754 */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 100% 51%; /* #ffc107 */
+    --warning-foreground: 210 10% 15%;
+
+    --info: 190 90% 50%; /* #0dcaf0 */
+    --info-foreground: 210 10% 15%;
+
+    /* Specific status colors */
+    --available: 152 69% 31%; /* #198754 */
+    --allocated: 218 96% 52%; /* #0d6efd */
+    --reserved: 45 100% 51%; /* #ffc107 */
+    --maintenance: 354 70% 54%; /* #dc3545 */
+    --disposed: 208 7% 46%; /* #6c757d */
+    --lost: 210 10% 23%; /* #343a40 */
+
+    /* Border Radii */
+    --radius-card: 16px;
+    --radius-btn: 10px;
+    --radius-input: 10px;
+    --radius-table: 16px;
+    --radius-modal: 18px;
+    --radius-chart: 16px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  
+  /* Apply typography rules from designs.md */
+  h1 {
+    @apply text-title font-bold;
+  }
+  h2 {
+    @apply text-section font-semibold;
+  }
+  h3 {
+    @apply text-cardTitle font-medium;
+  }
+}
+
+/* React Big Calendar styling adjustments for Enterprise Theme */
+.rbc-calendar {
+  @apply font-sans text-tableBody bg-white border border-border rounded-table overflow-hidden shadow-custom p-4;
+}
+
+.rbc-header {
+  @apply py-3 text-tableHeader font-semibold border-b border-border text-foreground bg-gray-50;
+}
+
+.rbc-event {
+  @apply bg-primary rounded-btn text-white text-xs px-2 py-1 border-none shadow-sm transition-all duration-200 hover:scale-[1.02] cursor-pointer;
+}
+
+.rbc-today {
+  @apply bg-gray-50/50;
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  @apply border-l border-border;
+}
+
+.rbc-month-row + .rbc-month-row {
+  @apply border-t border-border;
+}
+
+.rbc-month-view {
+  @apply border border-border rounded-table overflow-hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ced4da;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6c757d;
+}
