@@ -151,8 +151,8 @@ export const Assets: React.FC = () => {
       {/* Add Asset Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register New Asset" description="Enter the specifications of the physical asset below.">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input label="Asset Name" placeholder="e.g. MacBook Pro 14" error={errors.name?.message} {...register('name')} />
-          <Input label="Serial Number" placeholder="e.g. C02GX71MD6FF" error={errors.serialNumber?.message} {...register('serialNumber')} />
+          <Input label="Asset Name" placeholder="e.g. MacBook Pro 14" error={errors.name?.message as string | undefined} {...register('name')} />
+          <Input label="Serial Number" placeholder="e.g. C02GX71MD6FF" error={errors.serialNumber?.message as string | undefined} {...register('serialNumber')} />
           
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5 text-left">
@@ -181,8 +181,8 @@ export const Assets: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Purchase Value ($)" type="number" placeholder="3499" error={errors.purchaseValue?.message} {...register('purchaseValue')} />
-            <Input label="Location" placeholder="e.g. San Francisco HQ" error={errors.location?.message} {...register('location')} />
+            <Input label="Purchase Value ($)" type="number" placeholder="3499" error={errors.purchaseValue?.message as string | undefined} {...register('purchaseValue')} />
+            <Input label="Location" placeholder="e.g. San Francisco HQ" error={errors.location?.message as string | undefined} {...register('location')} />
           </div>
 
           <div className="flex justify-end gap-3 border-t border-[#dee2e6] pt-4 mt-6">

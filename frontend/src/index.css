@@ -6,54 +6,54 @@
 
 @layer base {
   :root {
-    --background: 210 17% 93%; /* #e9ecef */
-    --foreground: 210 10% 15%; /* #212529 */
+    --background: 210 40% 98%; /* #f8fafc slate-50 */
+    --foreground: 222 47% 11%; /* #0f172a slate-900 */
 
     --card: 0 0% 100%; /* #ffffff */
-    --card-foreground: 210 10% 15%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 10% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 208 7% 46%; /* #6c757d */
+    --primary: 243 75% 59%; /* #4f46e5 indigo-600 */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 208 7% 38%; /* #5a6268 */
+    --primary-hover: 243 75% 50%; /* #4338ca indigo-700 */
 
-    --secondary: 0 0% 100%; /* White */
-    --secondary-foreground: 210 10% 15%;
+    --secondary: 210 40% 96.1%; /* #f1f5f9 slate-100 */
+    --secondary-foreground: 222 47% 11.2%;
 
-    --muted: 208 7% 46%; /* #6c757d */
-    --muted-foreground: 208 7% 46%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%; /* #64748b slate-500 */
 
-    --accent: 210 17% 93%;
-    --accent-foreground: 210 10% 15%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11.2%;
 
-    --destructive: 354 70% 54%; /* #dc3545 */
+    --destructive: 346.8 77.2% 49.8%; /* #f43f5e rose-500 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 14% 83%; /* #ced4da */
-    --input: 210 14% 83%; /* #ced4da */
-    --ring: 208 7% 46%;
+    --border: 214.3 31.8% 91.4%; /* #e2e8f0 slate-200 */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 243 75% 59%;
 
-    --divider: #dee2e6;
+    --divider: #e2e8f0;
 
     /* Custom Statuses */
-    --success: 152 69% 31%; /* #198754 */
+    --success: 142.1 76.2% 36.3%; /* #16a34a emerald-600 */
     --success-foreground: 0 0% 100%;
 
-    --warning: 45 100% 51%; /* #ffc107 */
-    --warning-foreground: 210 10% 15%;
+    --warning: 37.9 92.1% 50.2%; /* #d97706 amber-600 */
+    --warning-foreground: 222 47% 11%;
 
-    --info: 190 90% 50%; /* #0dcaf0 */
-    --info-foreground: 210 10% 15%;
+    --info: 198.6 88.7% 48.4%; /* #0284c7 sky-600 */
+    --info-foreground: 222 47% 11%;
 
     /* Specific status colors */
-    --available: 152 69% 31%; /* #198754 */
-    --allocated: 218 96% 52%; /* #0d6efd */
-    --reserved: 45 100% 51%; /* #ffc107 */
-    --maintenance: 354 70% 54%; /* #dc3545 */
-    --disposed: 208 7% 46%; /* #6c757d */
-    --lost: 210 10% 23%; /* #343a40 */
+    --available: 142.1 76.2% 36.3%; /* #16a34a emerald-600 */
+    --allocated: 243 75% 59%; /* #4f46e5 indigo-600 */
+    --reserved: 37.9 92.1% 50.2%; /* #d97706 amber-600 */
+    --maintenance: 346.8 77.2% 49.8%; /* #f43f5e rose-500 */
+    --disposed: 215.4 16.3% 46.9%; /* #64748b slate-500 */
+    --lost: 222.2 47.4% 11.2%; /* #0f172a slate-900 */
 
     /* Border Radii */
     --radius-card: 16px;

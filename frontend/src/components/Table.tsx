@@ -36,17 +36,17 @@ export function Table<T extends { id: string | number }>({
   return (
     <div className="w-full flex flex-col gap-4 font-sans select-none">
       {/* Table Container */}
-      <div className="w-full bg-white border border-[#dee2e6] rounded-table overflow-hidden shadow-custom">
+      <div className="w-full bg-white border border-[#f1f5f9] rounded-table overflow-hidden shadow-custom">
         <div className="overflow-x-auto max-h-[500px]">
           <table className="w-full border-collapse text-left text-tableBody">
             {/* Sticky Header */}
-            <thead className="bg-[#e9ecef]/50 border-b border-[#dee2e6] sticky top-0 z-10">
+            <thead className="bg-slate-50 border-b border-[#e2e8f0] sticky top-0 z-10">
               <tr>
                 {columns.map((col, idx) => (
                   <th
                     key={idx}
                     className={cn(
-                      "py-4 px-6 text-tableHeader font-semibold text-[#495057] uppercase tracking-wider",
+                      "py-4 px-6 text-tableHeader font-semibold text-slate-500 uppercase tracking-wider",
                       col.className
                     )}
                   >
@@ -57,14 +57,14 @@ export function Table<T extends { id: string | number }>({
             </thead>
 
             {/* Table Body */}
-            <tbody className="divide-y divide-[#dee2e6]">
+            <tbody className="divide-y divide-[#f1f5f9]">
               {loading ? (
                 // Loading Skeleton Rows
                 Array.from({ length: rowsPerPage || 5 }).map((_, rIdx) => (
                   <tr key={rIdx}>
                     {columns.map((_, cIdx) => (
                       <td key={cIdx} className="py-4 px-6">
-                        <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
+                        <div className="h-4 bg-slate-100 rounded animate-pulse w-3/4" />
                       </td>
                     ))}
                   </tr>
@@ -72,7 +72,7 @@ export function Table<T extends { id: string | number }>({
               ) : data.length === 0 ? (
                 // Empty State Row
                 <tr>
-                  <td colSpan={columns.length} className="py-12 px-6 text-center text-[#6c757d]">
+                  <td colSpan={columns.length} className="py-12 px-6 text-center text-slate-400">
                     <p className="text-[16px] font-medium">{emptyMessage}</p>
                   </td>
                 </tr>
@@ -83,7 +83,7 @@ export function Table<T extends { id: string | number }>({
                     key={row.id}
                     onClick={() => onRowClick && onRowClick(row)}
                     className={cn(
-                      "hover:bg-[#e9ecef]/30 transition-all duration-150 odd:bg-white even:bg-[#e9ecef]/10",
+                      "hover:bg-slate-50/80 transition-all duration-150 odd:bg-white even:bg-slate-50/20",
                       onRowClick && "cursor-pointer"
                     )}
                   >
@@ -93,7 +93,7 @@ export function Table<T extends { id: string | number }>({
                         <td
                           key={cIdx}
                           className={cn(
-                            "py-4 px-6 text-[#212529] font-medium leading-normal",
+                            "py-4 px-6 text-slate-800 font-medium leading-normal",
                             col.className
                           )}
                         >
@@ -111,23 +111,23 @@ export function Table<T extends { id: string | number }>({
 
       {/* Pagination Controls */}
       {onPageChange && totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-[#dee2e6]/50 pt-4 mt-2 px-2">
-          <div className="text-[14px] text-[#6c757d] font-medium">
-            Showing Page <span className="font-semibold text-[#212529]">{currentPage}</span> of{' '}
-            <span className="font-semibold text-[#212529]">{totalPages}</span>
+        <div className="flex items-center justify-between border-t border-[#f1f5f9] pt-4 mt-2 px-2">
+          <div className="text-[14px] text-slate-500 font-medium">
+            Showing Page <span className="font-semibold text-slate-800">{currentPage}</span> of{' '}
+            <span className="font-semibold text-slate-800">{totalPages}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="p-2 border border-[#ced4da] rounded-btn bg-white hover:bg-gray-50 text-[#6c757d] disabled:opacity-40 disabled:pointer-events-none transition-all duration-200"
+              className="p-2 border border-slate-200 rounded-btn bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:pointer-events-none transition-all duration-200"
             >
               <ChevronLeft className="w-5 h-5 stroke-[1.75]" />
             </button>
             <button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="p-2 border border-[#ced4da] rounded-btn bg-white hover:bg-gray-50 text-[#6c757d] disabled:opacity-40 disabled:pointer-events-none transition-all duration-200"
+              className="p-2 border border-slate-200 rounded-btn bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:pointer-events-none transition-all duration-200"
             >
               <ChevronRight className="w-5 h-5 stroke-[1.75]" />
             </button>

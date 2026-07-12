@@ -32,15 +32,17 @@ export const Sidebar: React.FC = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <aside className="w-[280px] fixed top-0 bottom-0 left-0 bg-[#6c757d] text-white flex flex-col justify-between z-30 shadow-custom select-none">
+    <aside className="w-[280px] fixed top-0 bottom-0 left-0 bg-gradient-to-b from-slate-900 via-slate-950 to-black text-white flex flex-col justify-between z-30 shadow-2xl border-r border-slate-800/50 select-none">
       {/* Top Brand Logo */}
-      <div className="p-6 border-b border-white/10">
-        <h1 className="text-2xl font-bold tracking-tight text-white m-0">AssetFlow</h1>
-        <p className="text-xs text-white/70 font-medium m-0 mt-1 uppercase tracking-wider">Enterprise ERP</p>
+      <div className="p-6 border-b border-slate-800/65">
+        <h1 className="text-2xl font-extrabold tracking-tight m-0 bg-gradient-to-r from-indigo-400 via-indigo-200 to-cyan-400 bg-clip-text text-transparent">
+          AssetFlow
+        </h1>
+        <p className="text-[10px] text-indigo-400/80 font-bold m-0 mt-1.5 uppercase tracking-widest">Enterprise Suite</p>
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 py-6 overflow-y-auto space-y-1">
+      <nav className="flex-1 py-6 overflow-y-auto space-y-1 scrollbar-thin">
         {menuItems.map(item => {
           const Icon = item.icon;
           return (
@@ -48,16 +50,16 @@ export const Sidebar: React.FC = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
-                relative flex items-center gap-3 py-3 px-6 text-[15px] font-medium transition-all duration-200
+                relative flex items-center gap-3 py-3 px-6 text-[15px] font-medium transition-all duration-250
                 ${isActive 
-                  ? 'bg-white/15 text-white border-l-[4px] border-white pl-[20px]' 
-                  : 'text-white/70 hover:text-white hover:bg-white/5 border-l-[4px] border-transparent'}
+                  ? 'bg-gradient-to-r from-indigo-600/15 to-transparent text-white border-l-[4px] border-indigo-500 pl-[20px] shadow-[inset_4px_0_15px_rgba(99,102,241,0.04)] font-semibold' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border-l-[4px] border-transparent'}
               `}
             >
               <Icon className="w-5 h-5 stroke-[1.75]" />
               <span className="flex-1">{item.name}</span>
               {item.badge && unreadCount > 0 && (
-                <span className="bg-red-500 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                <span className="bg-indigo-600 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
                   {unreadCount}
                 </span>
               )}
@@ -67,13 +69,13 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer Profile Details */}
-      <div className="p-6 border-t border-white/10 space-y-4">
+      <div className="p-6 border-t border-slate-800/65 space-y-4">
         {/* Profile Link */}
         <NavLink
           to="/profile"
           className={({ isActive }) => `
             flex items-center gap-3 py-2 text-[15px] font-medium transition-all duration-200
-            ${isActive ? 'text-white' : 'text-white/70 hover:text-white'}
+            ${isActive ? 'text-indigo-400 font-semibold' : 'text-slate-400 hover:text-slate-200'}
           `}
         >
           <User className="w-5 h-5 stroke-[1.75]" />
@@ -83,22 +85,22 @@ export const Sidebar: React.FC = () => {
         {/* Logout button */}
         <button
           onClick={() => console.log('Logging out...')}
-          className="w-full flex items-center gap-3 py-2 text-[15px] font-medium text-white/70 hover:text-red-300 transition-all duration-200"
+          className="w-full flex items-center gap-3 py-2 text-[15px] font-medium text-slate-400 hover:text-rose-400 transition-all duration-200"
         >
           <LogOut className="w-5 h-5 stroke-[1.75]" />
           <span>Logout</span>
         </button>
 
-        {/* User Card */}
-        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/5">
+        {/* User Card Floating Widget */}
+        <div className="flex items-center gap-3 mt-4 p-3 bg-slate-800/40 border border-slate-800/70 rounded-xl select-none">
           <img
             src={user.avatar}
             alt={user.name}
-            className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-sm"
+            className="w-10 h-10 rounded-full object-cover border border-indigo-500/20 shadow-inner"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold text-white truncate m-0 leading-tight">{user.name}</p>
-            <p className="text-[12px] text-white/60 truncate m-0 leading-normal">{user.role}</p>
+            <p className="text-[13px] font-semibold text-slate-100 truncate m-0 leading-tight">{user.name}</p>
+            <p className="text-[11px] text-slate-450 truncate m-0 mt-0.5 leading-normal">{user.role}</p>
           </div>
         </div>
       </div>

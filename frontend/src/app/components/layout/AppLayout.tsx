@@ -5,7 +5,7 @@ import { Navbar } from './Navbar';
 
 export const AppLayout: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#e9ecef] flex">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar - fixed left */}
       <Sidebar />
 
@@ -16,7 +16,7 @@ export const AppLayout: React.FC = () => {
 
         {/* Dynamic Page Content */}
         <main className="flex-grow p-8 overflow-y-auto">
-          <div className="max-w-full mx-auto animate-fade">
+          <div className="max-w-full mx-auto animate-fade-in-up">
             <Outlet />
           </div>
         </main>

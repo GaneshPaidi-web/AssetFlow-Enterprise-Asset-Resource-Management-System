@@ -1,16 +1,13 @@
 import axios from 'axios';
-import * as mockDb from '../api/mockData';
-import type { Asset, Allocation, TransferRequest, MaintenanceRequest, Booking, Notification } from '../types';
+import type { Asset, Allocation, TransferRequest, MaintenanceRequest, Booking, Notification, AuditCycle } from '../types';
 
-// Create a simulated Axios instance with custom interceptors
 export const apiClient = axios.create({
-  baseURL: 'https://api.assetflow.enterprise/v1',
+  baseURL: 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token') || 'mock-jwt-token';
@@ -22,79 +19,115 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('Simulated API Error:', error.response || error.message);
+    console.error('API Client Error:', error.response || error.message);
     return Promise.reject(error);
   }
 );
 
-// Service modules referencing the local mock db (making it trivial to swap to real api endpoints later)
 export const AuthAPI = {
   login: async (credentials: any) => {
-    return { data: { token: 'mock-jwt-token', user: { name: 'Kristin Watson', role: 'System Administrator' } } };
+    const res = await apiClient.post('/auth/login', credentials);
+    return res.data;
   },
   signup: async (data: any) => {
-    return { data: { success: true } };
+    const res = await apiClient.post('/auth/signup', data);
+    return res.data;
   },
   forgotPassword: async (email: string) => {
-    return { data: { success: true } };
+    const res = await apiClient.post('/auth/forgot-password', { email });
+    return res.data;
   }
 };
 
 export const AssetAPI = {
-  getAll: async () => mockDb.getAssets(),
-  getById: async (id: string) => mockDb.getAssets().find(a => a.id === id),
-  create: async (asset: Omit<Asset, 'id' | 'status'>) => mockDb.addAsset(asset),
-  updateStatus: async (id: string, status: Asset['status']) => mockDb.updateAssetStatus(id, status),
+  getAll: async (): Promise<Asset[]> => {
+    const res = await apiClient.get('/assets');
+    return res.data;
+  },
+  getById: async (id: string): Promise<Asset> => {
+    const res = await apiClient.get(`/assets/${id}`);
+    return res.data;
+  },
+  create: async (asset: Omit<Asset, 'id' | 'status'>): Promise<Asset> => {
+    const res = await apiClient.post('/assets', asset);
+    return res.data;
+  },
+  updateStatus: async (id: string, status: Asset['status']): Promise<Asset> => {
+    const res = await apiClient.patch(`/assets/${id}/status`, { status });
+    return res.data;
+  },
 };
 
 export const AllocationAPI = {
-  getAll: async () => mockDb.getAllocations(),
-  allocate: async (assetId: string, employee: string, department: string) => {
-    const asset = mockDb.getAssets().find(a => a.id === assetId);
-    if (!asset) throw new Error('Asset not found');
-    mockDb.updateAssetStatus(assetId, 'Allocated');
-    return mockDb.addAllocation({
-      assetId,
-      assetName: asset.name,
-      serialNumber: asset.serialNumber,
-      allocatedTo: employee,
-      allocatedToEmail: `${employee.toLowerCase().replace(' ', '.')}@assetflow.com`,
-      department,
-      allocatedDate: new Date().toISOString().split('T')[0],
-      status: 'Active'
-    });
+  getAll: async (): Promise<Allocation[]> => {
+    const res = await apiClient.get('/allocations');
+    return res.data;
   },
-  return: async (id: string) => {
-    const alc = mockDb.getAllocations().find(a => a.id === id);
-    if (alc) {
-      mockDb.updateAllocationStatus(id, 'Returned');
-      mockDb.updateAssetStatus(alc.assetId, 'Available');
-    }
+  allocate: async (assetId: string, employee: string, department: string): Promise<Allocation> => {
+    const res = await apiClient.post('/allocations', { assetId, allocatedTo: employee, department });
+    return res.data;
   },
-  getTransfers: async () => mockDb.getTransfers(),
-  approveTransfer: async (id: string) => mockDb.updateTransferStatus(id, 'Approved'),
-  rejectTransfer: async (id: string) => mockDb.updateTransferStatus(id, 'Rejected'),
+  return: async (id: string): Promise<Allocation> => {
+    const res = await apiClient.post(`/allocations/${id}/return`);
+    return res.data;
+  },
+  getTransfers: async (): Promise<TransferRequest[]> => {
+    const res = await apiClient.get('/transfers');
+    return res.data;
+  },
+  createTransfer: async (assetId: string, toEmployee: string, toDepartment: string): Promise<TransferRequest> => {
+    const res = await apiClient.post('/transfers', { assetId, toEmployee, toDepartment });
+    return res.data;
+  },
+  approveTransfer: async (id: string): Promise<TransferRequest> => {
+    const res = await apiClient.post(`/transfers/${id}/approve`);
+    return res.data;
+  },
+  rejectTransfer: async (id: string): Promise<TransferRequest> => {
+    const res = await apiClient.post(`/transfers/${id}/reject`);
+    return res.data;
+  },
 };
 
 export const MaintenanceAPI = {
-  getAll: async () => mockDb.getMaintenance(),
-  createRequest: async (req: Omit<MaintenanceRequest, 'id' | 'requestedDate' | 'status'>) => mockDb.addMaintenanceRequest(req),
+  getAll: async (): Promise<MaintenanceRequest[]> => {
+    const res = await apiClient.get('/maintenance');
+    return res.data;
+  },
+  createRequest: async (req: { assetId: string; description: string; priority: 'Low' | 'Medium' | 'High' }): Promise<MaintenanceRequest> => {
+    const res = await apiClient.post('/maintenance', req);
+    return res.data;
+  },
 };
 
 export const BookingAPI = {
-  getAll: async () => mockDb.getBookings(),
-  create: async (booking: Omit<Booking, 'id' | 'status'>) => mockDb.addBooking(booking),
+  getAll: async (): Promise<Booking[]> => {
+    const res = await apiClient.get('/bookings');
+    return res.data;
+  },
+  create: async (booking: Omit<Booking, 'id' | 'status'>): Promise<Booking> => {
+    const res = await apiClient.post('/bookings', booking);
+    return res.data;
+  },
 };
 
 export const AuditAPI = {
-  getAll: async () => mockDb.getAudits(),
+  getAll: async (): Promise<AuditCycle[]> => {
+    const res = await apiClient.get('/audits');
+    return res.data;
+  },
 };
 
 export const NotificationAPI = {
-  getAll: async () => mockDb.getNotifications(),
-  markAllRead: async () => mockDb.markNotificationsAsRead(),
+  getAll: async (): Promise<Notification[]> => {
+    const res = await apiClient.get('/notifications');
+    return res.data;
+  },
+  markAllRead: async (): Promise<{ success: boolean }> => {
+    const res = await apiClient.post('/notifications/mark-all-read');
+    return res.data;
+  },
 };

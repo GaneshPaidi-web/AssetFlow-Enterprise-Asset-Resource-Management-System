@@ -58,15 +58,15 @@ export const AllocationPage: React.FC = () => {
           title="Active Corporate Allocations"
           value={totalAllocatedCount}
           icon={TrendingUp}
-          iconBgColor="bg-[#0d6efd]/10"
-          iconColor="text-[#0d6efd]"
+          iconBgColor="bg-primary/10"
+          iconColor="text-primary"
         />
         <KPICard
           title="Pending Transfer Approvals"
           value={pendingTransfersCount}
           icon={RefreshCw}
-          iconBgColor="bg-[#ffc107]/10"
-          iconColor="text-[#b25e00]"
+          iconBgColor="bg-[#d97706]/10"
+          iconColor="text-[#d97706]"
         />
       </div>
 
@@ -116,29 +116,29 @@ export const AllocationPage: React.FC = () => {
                 pendingTransfers.map(req => (
                   <div
                     key={req.id}
-                    className="p-4 bg-gray-50 border border-[#dee2e6] rounded-btn space-y-3.5 select-none"
+                    className="p-4 bg-slate-50/50 border border-[#f1f5f9] rounded-btn space-y-3.5 select-none"
                   >
                     {/* Header */}
                     <div className="flex justify-between items-start gap-2">
                       <div className="min-w-0">
-                        <h4 className="text-[14px] font-bold text-[#212529] truncate">{req.assetName}</h4>
-                        <span className="text-[10px] text-gray-400 font-bold block mt-0.5">{req.id} • {req.serialNumber}</span>
+                        <h4 className="text-[14px] font-bold text-[#0f172a] truncate">{req.assetName}</h4>
+                        <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{req.id} • {req.serialNumber}</span>
                       </div>
                       <StatusBadge status="Pending" />
                     </div>
 
                     {/* Flow */}
-                    <div className="flex items-center gap-2.5 text-xs text-[#495057] font-semibold bg-white border border-[#dee2e6] p-2.5 rounded">
+                    <div className="flex items-center gap-2.5 text-xs text-slate-600 font-semibold bg-white border border-[#f1f5f9] p-2.5 rounded">
                       <div className="min-w-0 flex-1">
-                        <span className="text-[10px] text-gray-400 block font-bold">FROM</span>
+                        <span className="text-[10px] text-slate-400 block font-bold">FROM</span>
                         <span className="truncate block">{req.fromEmployee}</span>
-                        <span className="text-[10px] text-[#6c757d] block font-semibold truncate">({req.fromDepartment})</span>
+                        <span className="text-[10px] text-slate-500 block font-semibold truncate">({req.fromDepartment})</span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
+                      <ArrowRight className="w-4 h-4 text-slate-350 shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <span className="text-[10px] text-gray-400 block font-bold">TO</span>
-                        <span className="truncate block font-bold text-[#212529]">{req.toEmployee}</span>
-                        <span className="text-[10px] text-[#6c757d] block font-bold truncate">({req.toDepartment})</span>
+                        <span className="text-[10px] text-slate-400 block font-bold">TO</span>
+                        <span className="truncate block font-bold text-[#0f172a]">{req.toEmployee}</span>
+                        <span className="text-[10px] text-slate-500 block font-bold truncate">({req.toDepartment})</span>
                       </div>
                     </div>
 
@@ -157,7 +157,7 @@ export const AllocationPage: React.FC = () => {
                         variant="primary"
                         size="sm"
                         onClick={() => approveTransfer(req.id)}
-                        className="flex-1 flex items-center justify-center gap-1 bg-[#6c757d] hover:bg-[#5a6268] text-white border-transparent"
+                        className="flex-1 flex items-center justify-center gap-1"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Approve
@@ -180,9 +180,9 @@ export const AllocationPage: React.FC = () => {
       >
         {returnTarget && (
           <div className="space-y-5 select-none">
-            <div className="p-4 bg-gray-50 border border-[#dee2e6] rounded-btn text-left space-y-2">
-              <div className="text-[15px] font-bold text-[#212529]">{returnTarget.assetName}</div>
-              <div className="text-xs text-[#6c757d] font-semibold">
+            <div className="p-4 bg-slate-50 border border-[#f1f5f9] rounded-btn text-left space-y-2">
+              <div className="text-[15px] font-bold text-slate-800">{returnTarget.assetName}</div>
+              <div className="text-xs text-slate-550 font-semibold">
                 <span className="block font-bold">Serial Number: {returnTarget.serialNumber}</span>
                 <span className="block mt-1">Allocated to: {returnTarget.allocatedTo}</span>
                 <span className="block">Department: {returnTarget.department}</span>
@@ -190,11 +190,11 @@ export const AllocationPage: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-xs text-[#6c757d] text-left leading-relaxed">
-              Confirming this return will automatically change the asset's status back to <span className="text-[#198754] font-bold bg-[#198754]/10 px-1.5 py-0.5 rounded">Available</span> and close out the active allocation registry record.
+            <p className="text-xs text-slate-500 text-left leading-relaxed">
+              Confirming this return will automatically change the asset's status back to <span className="text-[#16a34a] font-bold bg-[#16a34a]/10 px-1.5 py-0.5 rounded">Available</span> and close out the active allocation registry record.
             </p>
 
-            <div className="flex justify-end gap-3 border-t border-[#dee2e6] pt-4 mt-6">
+            <div className="flex justify-end gap-3 border-t border-[#f1f5f9] pt-4 mt-6">
               <Button variant="outline" onClick={() => setReturnTarget(null)}>
                 Cancel
               </Button>

@@ -32,7 +32,7 @@ const reportHistory = [
   { id: 'RPT-004', name: 'FY26 Q1 Capital Investment Log', date: '2026-05-10', size: '1.2 MB', author: 'Bessie Cooper' }
 ];
 
-const COLORS = ['#6c757d', '#495057', '#343a40', '#212529', '#ced4da'];
+const COLORS = ['#4f46e5', '#06b6d4', '#10b981', '#8b5cf6', '#f59e0b'];
 
 export const Reports: React.FC = () => {
   const [dateRange] = useState('Last 30 Days');
@@ -44,12 +44,12 @@ export const Reports: React.FC = () => {
         description="View enterprise asset distribution, financial value and download detailed compliance logs."
         actions={
           <div className="flex gap-2">
-            <div className="flex border border-[#ced4da] rounded-btn overflow-hidden select-none bg-white">
+            <div className="flex border border-slate-200 rounded-btn overflow-hidden select-none bg-white shadow-sm">
               <button
                 value={dateRange}
-                className="h-[44px] px-4 bg-transparent border-0 text-[15px] font-semibold text-[#495057] focus:outline-none flex items-center gap-2"
+                className="h-[44px] px-4 bg-transparent border-0 text-[15px] font-semibold text-slate-700 focus:outline-none flex items-center gap-2"
               >
-                <Calendar className="w-5 h-5 text-[#6c757d]" />
+                <Calendar className="w-5 h-5 text-primary" />
                 {dateRange}
               </button>
             </div>
@@ -63,9 +63,9 @@ export const Reports: React.FC = () => {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <KPICard title="Capital Investment" value="$244,600" icon={DollarSign} iconBgColor="bg-[#198754]/10" iconColor="text-[#198754]" />
-        <KPICard title="Depreciated Value" value="$192,200" icon={TrendingUp} iconBgColor="bg-[#dc3545]/10" iconColor="text-[#dc3545]" />
-        <KPICard title="Avg. Asset Lifespan" value="4.8 Years" icon={RefreshCw} iconBgColor="bg-[#0dcaf0]/10" iconColor="text-[#0c8ca7]" />
+        <KPICard title="Capital Investment" value="$244,600" icon={DollarSign} iconBgColor="bg-[#10b981]/10" iconColor="text-[#10b981]" />
+        <KPICard title="Depreciated Value" value="$192,200" icon={TrendingUp} iconBgColor="bg-destructive/10" iconColor="text-destructive" />
+        <KPICard title="Avg. Asset Lifespan" value="4.8 Years" icon={RefreshCw} iconBgColor="bg-primary/10" iconColor="text-primary" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -74,12 +74,12 @@ export const Reports: React.FC = () => {
           <div className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dee2e6" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: '12px', fill: '#6c757d' }} />
-                <YAxis tickLine={false} axisLine={false} style={{ fontSize: '12px', fill: '#6c757d' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: '12px', fill: '#94a3b8' }} />
+                <YAxis tickLine={false} axisLine={false} style={{ fontSize: '12px', fill: '#94a3b8' }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="allocations" stroke="#6c757d" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="returns" stroke="#ced4da" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="allocations" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="returns" stroke="#06b6d4" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -103,18 +103,18 @@ export const Reports: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                <Tooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-2.5 mt-4 border-t border-[#dee2e6] pt-4">
+          <div className="space-y-2.5 mt-4 border-t border-[#f1f5f9] pt-4">
             {categoryData.map((cat, idx) => (
               <div key={cat.name} className="flex items-center justify-between text-xs select-none">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                  <span className="font-semibold text-gray-700">{cat.name}</span>
+                  <span className="font-semibold text-slate-650">{cat.name}</span>
                 </div>
-                <span className="font-bold text-[#212529]">${cat.value.toLocaleString()}</span>
+                <span className="font-bold text-slate-800">${cat.value.toLocaleString()}</span>
               </div>
             ))}
           </div>
