@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-import "./Auth.css";
+import "../styles/Auth.css";
 
-export default function Login() {
+const Login = () => {
   return (
     <div className="auth-container">
-
       <div className="left-panel">
         <h1>AssetFlow</h1>
         <p>Enterprise ERP</p>
@@ -16,34 +15,22 @@ export default function Login() {
       </div>
 
       <div className="right-panel">
-
         <h2>Sign In</h2>
 
         <form>
+          <input type="email" placeholder="Email Address" />
 
-          <input
-            type="email"
-            placeholder="Email Address"
-          />
+          <input type="password" placeholder="Password" />
 
-          <input
-            type="password"
-            placeholder="Password"
-          />
-
-          <button>
-            Sign In
-          </button>
-
+          <button type="submit">Sign In</button>
         </form>
 
         <p>
-          Don't have an account?
-          <Link to="/signup"> Sign Up</Link>
+          Don't have an account? <Link to="/signup">Sign Up</Link>
         </p>
-
       </div>
-
     </div>
   );
-}
+};
+
+export default Login;
