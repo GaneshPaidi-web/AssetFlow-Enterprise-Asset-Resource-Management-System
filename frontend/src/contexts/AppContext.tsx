@@ -1,16 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { Asset, Allocation, TransferRequest, MaintenanceRequest, AuditCycle, Booking, Notification, User } from '../types';
-import {
-  AssetAPI,
-  AllocationAPI,
-  MaintenanceAPI,
-  BookingAPI,
-  AuditAPI,
-  NotificationAPI
-} from '../services/api';
+import type { Asset, Allocation, TransferRequest, MaintenanceRequest, AuditCycle, Booking, Notification } from '../types';
+import apiClient from '../services/apiClient';
 
 interface AppContextType {
-  user: User;
   activeSite: string;
   setActiveSite: (site: string) => void;
   assets: Asset[];
@@ -20,30 +12,25 @@ interface AppContextType {
   audits: AuditCycle[];
   bookings: Booking[];
   notifications: Notification[];
-  logout: () => void;
   addAsset: (asset: Omit<Asset, 'id' | 'status'>) => void;
   allocateAsset: (assetId: string, employee: string, department: string) => void;
   returnAsset: (allocationId: string) => void;
-  approveTransfer: (transferId: string) => void;
-  rejectTransfer: (transferId: string) => void;
-  requestTransfer: (assetId: string, toEmployee: string, toDepartment: string) => void;
-  requestMaintenance: (assetId: string, description: string, priority: 'Low' | 'Medium' | 'High') => void;
-  createBooking: (booking: Omit<Booking, 'id' | 'status'>) => void;
+  initiateReturn: (allocationId: string) => void;
+  requestTransfer: (assetId: string, employee: string) => Promise<void>;
+  approveTransfer: (transferId: string) => Promise<void>;
+  rejectTransfer: (transferId: string) => Promise<void>;
+  requestMaintenance: (assetId: string, description: string, priority: 'Low' | 'Medium' | 'High') => Promise<void>;
+  approveMaintenance: (ticketId: string) => Promise<void>;
+  rejectMaintenance: (ticketId: string) => Promise<void>;
+  resolveMaintenance: (ticketId: string) => Promise<void>;
+  createBooking: (booking: { assetId: string; startDate: string; endDate: string }) => Promise<void>;
   clearNotifications: () => void;
+  syncState: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user] = useState<User>({
-    id: 'USR-001',
-    name: 'Kristin Watson',
-    email: 'kristin.watson@assetflow.com',
-    role: 'System Administrator',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-    site: 'San Francisco HQ'
-  });
-
   const [activeSite, setActiveSite] = useState<string>('San Francisco HQ');
   const [assets, setAssets] = useState<Asset[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
@@ -53,27 +40,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Synchronize state with live backend database
+  // Synchronize state with backend
   const syncState = async () => {
     try {
-      const [assetsData, allocationsData, transfersData, maintenanceData, auditsData, bookingsData, notificationsData] = await Promise.all([
-        AssetAPI.getAll(),
-        AllocationAPI.getAll(),
-        AllocationAPI.getTransfers(),
-        MaintenanceAPI.getAll(),
-        AuditAPI.getAll(),
-        BookingAPI.getAll(),
-        NotificationAPI.getAll()
+      const [assetsRes, allocRes, transfersRes, maintenanceRes] = await Promise.all([
+        apiClient.get('/assets'),
+        apiClient.get('/allocations'),
+        apiClient.get('/transfers').catch(() => ({ data: [] })),
+        apiClient.get('/maintenance').catch(() => ({ data: [] })),
       ]);
-      setAssets(assetsData);
-      setAllocations(allocationsData);
-      setTransfers(transfersData);
-      setMaintenance(maintenanceData);
-      setAudits(auditsData);
-      setBookings(bookingsData);
-      setNotifications(notificationsData);
-    } catch (error) {
-      console.error('Failed to load data from backend server:', error);
+      setAssets(assetsRes.data);
+      setAllocations(allocRes.data);
+      setTransfers(transfersRes.data);
+      setMaintenance(maintenanceRes.data);
+    } catch (e) {
+      console.error('Failed to sync state from backend', e);
     }
   };
 
@@ -81,95 +62,143 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncState();
   }, []);
 
-  const logout = () => {
-    console.log('Logging out user...');
-  };
-
   const handleAddAsset = async (asset: Omit<Asset, 'id' | 'status'>) => {
     try {
-      await AssetAPI.create(asset);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to add asset:', error);
+      await apiClient.post('/assets', asset);
+      syncState();
+    } catch (e) {
+      console.error('Failed to add asset', e);
     }
   };
 
   const allocateAsset = async (assetId: string, employee: string, department: string) => {
     try {
-      await AllocationAPI.allocate(assetId, employee, department);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to allocate asset:', error);
+      await apiClient.post('/allocations', { assetId, allocatedTo: employee, department });
+      syncState();
+    } catch (e: any) {
+      if (e.response?.status === 409) {
+        throw new Error('CONFLICT');
+      }
+      console.error('Failed to allocate asset', e);
+      throw e;
     }
   };
 
   const returnAsset = async (allocationId: string) => {
     try {
-      await AllocationAPI.return(allocationId);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to return asset:', error);
+      await apiClient.patch(`/allocations/${allocationId}/return`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to return asset', e);
+    }
+  };
+
+  const initiateReturn = async (allocationId: string) => {
+    try {
+      await apiClient.patch(`/allocations/${allocationId}/initiate-return`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to initiate return', e);
+    }
+  };
+
+  const requestTransfer = async (assetId: string, employeeName: string) => {
+    try {
+      // Find the user by name to get their ID for the transfer
+      const usersRes = await apiClient.get('/users');
+      const targetUser = usersRes.data.find((u: any) => u.name === employeeName);
+      if (!targetUser) {
+        throw new Error('Target user not found');
+      }
+      await apiClient.post('/transfers', { assetId, toUserId: targetUser.id });
+      syncState();
+    } catch (e) {
+      console.error('Failed to request transfer', e);
+      throw e;
     }
   };
 
   const approveTransfer = async (transferId: string) => {
     try {
-      await AllocationAPI.approveTransfer(transferId);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to approve transfer:', error);
+      await apiClient.patch(`/transfers/${transferId}/approve`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to approve transfer', e);
+      throw e;
     }
   };
 
   const rejectTransfer = async (transferId: string) => {
     try {
-      await AllocationAPI.rejectTransfer(transferId);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to reject transfer:', error);
-    }
-  };
-
-  const requestTransfer = async (assetId: string, toEmployee: string, toDepartment: string) => {
-    try {
-      await AllocationAPI.createTransfer(assetId, toEmployee, toDepartment);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to create transfer request:', error);
+      await apiClient.patch(`/transfers/${transferId}/reject`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to reject transfer', e);
+      throw e;
     }
   };
 
   const requestMaintenance = async (assetId: string, description: string, priority: 'Low' | 'Medium' | 'High') => {
     try {
-      await MaintenanceAPI.createRequest({ assetId, description, priority });
-      await syncState();
-    } catch (error) {
-      console.error('Failed to request maintenance:', error);
+      await apiClient.post('/maintenance', { assetId, description, priority });
+      syncState();
+    } catch (e) {
+      console.error('Failed to request maintenance', e);
+      throw e;
     }
   };
 
-  const createBooking = async (booking: Omit<Booking, 'id' | 'status'>) => {
+  const approveMaintenance = async (ticketId: string) => {
     try {
-      await BookingAPI.create(booking);
-      await syncState();
-    } catch (error) {
-      console.error('Failed to create booking:', error);
+      await apiClient.patch(`/maintenance/${ticketId}/approve`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to approve maintenance ticket', e);
+      throw e;
     }
   };
 
-  const clearNotifications = async () => {
+  const rejectMaintenance = async (ticketId: string) => {
     try {
-      await NotificationAPI.markAllRead();
-      await syncState();
-    } catch (error) {
-      console.error('Failed to clear notifications:', error);
+      await apiClient.patch(`/maintenance/${ticketId}/reject`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to reject maintenance ticket', e);
+      throw e;
     }
+  };
+
+  const resolveMaintenance = async (ticketId: string) => {
+    try {
+      await apiClient.patch(`/maintenance/${ticketId}/resolve`);
+      syncState();
+    } catch (e) {
+      console.error('Failed to resolve maintenance ticket', e);
+      throw e;
+    }
+  };
+
+  const createBooking = async (booking: { assetId: string; startDate: string; endDate: string }) => {
+    try {
+      await apiClient.post('/bookings', booking);
+      syncState();
+    } catch (e: unknown) {
+      const err = e as { response?: { status?: number; data?: { conflict?: boolean } } };
+      if (err.response?.status === 409 && err.response?.data?.conflict) {
+        throw new Error('CONFLICT');
+      }
+      console.error('Failed to create booking', e);
+      throw e;
+    }
+  };
+
+  const clearNotifications = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
   return (
     <AppContext.Provider
       value={{
-        user,
         activeSite,
         setActiveSite,
         assets,
@@ -179,16 +208,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         audits,
         bookings,
         notifications,
-        logout,
         addAsset: handleAddAsset,
         allocateAsset,
         returnAsset,
+        initiateReturn,
+        requestTransfer,
         approveTransfer,
         rejectTransfer,
-        requestTransfer,
         requestMaintenance,
+        approveMaintenance,
+        rejectMaintenance,
+        resolveMaintenance,
         createBooking,
-        clearNotifications
+        clearNotifications,
+        syncState,
       }}
     >
       {children}
