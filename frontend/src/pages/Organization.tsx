@@ -1,36 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Table } from '../components/Table';
 import { Button } from '../components/Button';
-import { Building2, Layers, Users, Plus } from 'lucide-react';
+import { Modal } from '../components/Modal';
+import { Input } from '../components/Input';
+import { Building2, Layers, Users, Plus, CheckCircle, XCircle } from 'lucide-react';
+import apiClient from '../services/apiClient';
 
 export const Organization: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'departments' | 'categories' | 'employees'>('departments');
 
-  const departmentsData = [
-    { id: '1', name: 'Engineering', code: 'ENG', manager: 'Jane Cooper', assetsCount: 12, budget: '$45,000' },
-    { id: '2', name: 'Marketing', code: 'MKT', manager: 'Albert Flores', assetsCount: 8, budget: '$20,000' },
-    { id: '3', name: 'HR', code: 'HRD', manager: 'Kristin Watson', assetsCount: 6, budget: '$12,500' },
-    { id: '4', name: 'Finance', code: 'FIN', manager: 'Bessie Cooper', assetsCount: 4, budget: '$15,000' },
-    { id: '5', name: 'Product', code: 'PRD', manager: 'John Doe', assetsCount: 7, budget: '$30,000' }
-  ];
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
 
-  const categoriesData = [
-    { id: '1', name: 'IT Hardware', description: 'Laptops, mobile devices, monitors and local workstations', depreciationRate: '20% / yr', totalValue: '$120,500' },
-    { id: '2', name: 'Networking', description: 'Switches, routers, firewalls, and server rack accessories', depreciationRate: '15% / yr', totalValue: '$65,000' },
-    { id: '3', name: 'Facilities', description: 'Projectors, display screens, smartboards, and AV equipment', depreciationRate: '10% / yr', totalValue: '$18,400' },
-    { id: '4', name: 'Furniture', description: 'Office desks, ergonomic task chairs, and boardroom tables', depreciationRate: '5% / yr', totalValue: '$34,900' },
-    { id: '5', name: 'Accessories', description: 'Keyboards, mice, adapters, cables and docking stations', depreciationRate: '30% / yr', totalValue: '$5,800' }
-  ];
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatDesc, setNewCatDesc] = useState('');
 
-  const employeesData = [
-    { id: '1', name: 'Jane Cooper', email: 'jane.cooper@assetflow.com', department: 'Engineering', role: 'Engineering Lead', allocatedAssets: 3 },
-    { id: '2', name: 'John Doe', email: 'john.doe@assetflow.com', department: 'Product', role: 'Product Manager', allocatedAssets: 2 },
-    { id: '3', name: 'Albert Flores', email: 'albert.flores@assetflow.com', department: 'Finance', role: 'Financial Analyst', allocatedAssets: 1 },
-    { id: '4', name: 'Kristin Watson', email: 'kristin.watson@assetflow.com', department: 'HR', role: 'HR Specialist', allocatedAssets: 1 },
-    { id: '5', name: 'Cody Fisher', email: 'cody.fisher@assetflow.com', department: 'Sales', role: 'Sales Executive', allocatedAssets: 0 }
-  ];
+  const fetchData = async () => {
+    try {
+      const [deptRes, catRes, empRes] = await Promise.all([
+        apiClient.get('/departments'),
+        apiClient.get('/categories'),
+        apiClient.get('/users')
+      ]);
+      setDepartments(deptRes.data);
+      setCategories(catRes.data);
+      setEmployees(empRes.data);
+    } catch (e) {
+      console.error('Failed to fetch org data', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreateDept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiClient.post('/departments', { name: newDeptName });
+      setIsDeptModalOpen(false);
+      setNewDeptName('');
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCreateCat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiClient.post('/categories', { name: newCatName, description: newCatDesc });
+      setIsCatModalOpen(false);
+      setNewCatName('');
+      setNewCatDesc('');
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      await apiClient.patch(`/users/${userId}/role`, { role: newRole });
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="space-y-6 font-sans">
@@ -38,10 +80,18 @@ export const Organization: React.FC = () => {
         title="Organization Setup"
         description="Configure your corporate departments, asset classifications, and employee directories."
         actions={
-          <Button variant="primary" className="flex items-center gap-2">
-            <Plus className="w-5 h-5 stroke-[1.75]" />
-            Add New Item
-          </Button>
+          <div className="flex gap-2">
+            {activeTab === 'departments' && (
+              <Button variant="primary" onClick={() => setIsDeptModalOpen(true)} className="flex items-center gap-2">
+                <Plus className="w-5 h-5 stroke-[1.75]" /> Add Department
+              </Button>
+            )}
+            {activeTab === 'categories' && (
+              <Button variant="primary" onClick={() => setIsCatModalOpen(true)} className="flex items-center gap-2">
+                <Plus className="w-5 h-5 stroke-[1.75]" /> Add Category
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -50,35 +100,26 @@ export const Organization: React.FC = () => {
         <button
           onClick={() => setActiveTab('departments')}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 text-[15px] font-semibold transition-all duration-200 ${
-            activeTab === 'departments'
-              ? 'border-[#6c757d] text-[#212529] bg-white rounded-t-btn'
-              : 'border-transparent text-[#6c757d] hover:text-[#212529]'
+            activeTab === 'departments' ? 'border-[#6c757d] text-[#212529] bg-white rounded-t-btn' : 'border-transparent text-[#6c757d] hover:text-[#212529]'
           }`}
         >
-          <Building2 className="w-4.5 h-4.5" />
-          Departments
+          <Building2 className="w-4.5 h-4.5" /> Departments
         </button>
         <button
           onClick={() => setActiveTab('categories')}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 text-[15px] font-semibold transition-all duration-200 ${
-            activeTab === 'categories'
-              ? 'border-[#6c757d] text-[#212529] bg-white rounded-t-btn'
-              : 'border-transparent text-[#6c757d] hover:text-[#212529]'
+            activeTab === 'categories' ? 'border-[#6c757d] text-[#212529] bg-white rounded-t-btn' : 'border-transparent text-[#6c757d] hover:text-[#212529]'
           }`}
         >
-          <Layers className="w-4.5 h-4.5" />
-          Asset Categories
+          <Layers className="w-4.5 h-4.5" /> Asset Categories
         </button>
         <button
           onClick={() => setActiveTab('employees')}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 text-[15px] font-semibold transition-all duration-200 ${
-            activeTab === 'employees'
-              ? 'border-[#6c757d] text-[#212529] bg-white rounded-t-btn'
-              : 'border-transparent text-[#6c757d] hover:text-[#212529]'
+            activeTab === 'employees' ? 'border-[#6c757d] text-[#212529] bg-white rounded-t-btn' : 'border-transparent text-[#6c757d] hover:text-[#212529]'
           }`}
         >
-          <Users className="w-4.5 h-4.5" />
-          Employees
+          <Users className="w-4.5 h-4.5" /> Employees
         </button>
       </div>
 
@@ -86,7 +127,7 @@ export const Organization: React.FC = () => {
       <Card className="p-0 border-t-transparent rounded-t-none">
         {activeTab === 'departments' && (
           <Table
-            data={departmentsData}
+            data={departments}
             columns={[
               { header: 'Department Name', accessorKey: 'name' },
               { header: 'Code', accessorKey: 'code' },
@@ -99,7 +140,7 @@ export const Organization: React.FC = () => {
 
         {activeTab === 'categories' && (
           <Table
-            data={categoriesData}
+            data={categories}
             columns={[
               { header: 'Category Name', accessorKey: 'name' },
               { header: 'Description', accessorKey: 'description', className: 'max-w-xs truncate' },
@@ -111,17 +152,53 @@ export const Organization: React.FC = () => {
 
         {activeTab === 'employees' && (
           <Table
-            data={employeesData}
+            data={employees}
             columns={[
               { header: 'Employee Name', accessorKey: 'name' },
               { header: 'Corporate Email', accessorKey: 'email' },
-              { header: 'Department', accessorKey: 'department' },
-              { header: 'Corporate Role', accessorKey: 'role' },
-              { header: 'Allocated Assets', accessorKey: 'allocatedAssets' }
+              { header: 'Role', accessorKey: 'role' },
+              {
+                header: 'Promote Role',
+                accessorKey: 'actions',
+                render: (row) => (
+                  <select
+                    value={row.role}
+                    onChange={(e) => handleRoleChange(row.id, e.target.value)}
+                    className="h-8 px-2 bg-white border border-[#ced4da] rounded text-[13px] text-[#212529]"
+                  >
+                    <option value="Employee">Employee</option>
+                    <option value="Department Head">Department Head</option>
+                    <option value="Asset Manager">Asset Manager</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                )
+              }
             ]}
           />
         )}
       </Card>
+
+      {/* Modals */}
+      <Modal isOpen={isDeptModalOpen} onClose={() => setIsDeptModalOpen(false)} title="Add Department" description="Create a new corporate department.">
+        <form onSubmit={handleCreateDept} className="space-y-4">
+          <Input label="Department Name" placeholder="e.g. Finance" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} required />
+          <div className="flex justify-end gap-3 mt-6">
+            <Button type="button" variant="outline" onClick={() => setIsDeptModalOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="primary">Create</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isCatModalOpen} onClose={() => setIsCatModalOpen(false)} title="Add Category" description="Create a new asset classification.">
+        <form onSubmit={handleCreateCat} className="space-y-4">
+          <Input label="Category Name" placeholder="e.g. Monitors" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} required />
+          <Input label="Description" placeholder="Optional notes" value={newCatDesc} onChange={(e) => setNewCatDesc(e.target.value)} />
+          <div className="flex justify-end gap-3 mt-6">
+            <Button type="button" variant="outline" onClick={() => setIsCatModalOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="primary">Create</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
