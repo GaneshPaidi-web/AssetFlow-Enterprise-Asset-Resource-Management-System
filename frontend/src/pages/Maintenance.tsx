@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppState } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { KPICard } from '../components/KPICard';
 import { Card } from '../components/Card';
@@ -10,7 +11,8 @@ import { Input } from '../components/Input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Wrench, ShieldAlert, CheckCircle, Activity, Heart, Plus, Search, Grid, List } from 'lucide-react';
+import { Wrench, ShieldAlert, CheckCircle, Activity, Heart, Plus, Search, Grid, List, ThumbsUp, ThumbsDown, CheckCircle2 } from 'lucide-react';
+import type { MaintenanceRequest } from '../types';
 
 const maintenanceSchema = z.object({
   assetId: z.string().min(1, { message: 'Asset is required' }),
@@ -21,21 +23,57 @@ const maintenanceSchema = z.object({
 type MaintenanceFormSchema = z.infer<typeof maintenanceSchema>;
 
 export const Maintenance: React.FC = () => {
-  const { maintenance, assets, requestMaintenance } = useAppState();
+  const { maintenance, assets, requestMaintenance, approveMaintenance, rejectMaintenance, resolveMaintenance } = useAppState();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const isManager = ['Admin', 'Asset Manager'].includes(user?.role || '');
+  const isEmployee = user?.role === 'Employee';
 
   // Form setup
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<MaintenanceFormSchema>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<MaintenanceFormSchema>({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: { priority: 'Medium' }
   });
 
-  const onSubmit = (data: MaintenanceFormSchema) => {
-    requestMaintenance(data.assetId, data.description, data.priority);
-    setIsModalOpen(false);
-    reset();
+  const onSubmit = async (data: MaintenanceFormSchema) => {
+    try {
+      await requestMaintenance(data.assetId, data.description, data.priority);
+      setIsModalOpen(false);
+      reset();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleApprove = async (ticket: MaintenanceRequest) => {
+    setActionLoading(ticket.id + '_approve');
+    try {
+      await approveMaintenance(ticket.id);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (ticket: MaintenanceRequest) => {
+    setActionLoading(ticket.id + '_reject');
+    try {
+      await rejectMaintenance(ticket.id);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResolve = async (ticket: MaintenanceRequest) => {
+    setActionLoading(ticket.id + '_resolve');
+    try {
+      await resolveMaintenance(ticket.id);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // KPIs
@@ -44,14 +82,71 @@ export const Maintenance: React.FC = () => {
   const countInProgress = maintenance.filter(m => m.status === 'In Progress').length;
   const countCompleted = maintenance.filter(m => m.status === 'Completed').length;
 
-  // Filter available assets to repair (not currently in repair)
+  // Filter assets for the raise ticket form
   const repairableAssets = assets.filter(a => a.status !== 'Maintenance');
 
-  const filteredRequests = maintenance.filter(m =>
+  // Determine which tickets to show:
+  // Employee → only their own (if userId matches, or fallback to all for now since we don't store userId on ticket)
+  const visibleMaintenance = maintenance;
+
+  const filteredRequests = visibleMaintenance.filter(m =>
     m.assetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.assetId.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Render action buttons for a ticket (manager only)
+  const renderManagerActions = (ticket: MaintenanceRequest) => {
+    if (!isManager) return null;
+    const baseLoading = (key: string) => actionLoading === ticket.id + '_' + key;
+
+    return (
+      <div className="flex gap-2 flex-wrap mt-3 pt-3 border-t border-[#dee2e6]">
+        {ticket.status === 'Pending' && (
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleApprove(ticket)}
+              disabled={baseLoading('approve')}
+              className="flex items-center gap-1 bg-[#198754] border-transparent hover:bg-[#157347] text-white"
+            >
+              <ThumbsUp className="w-3.5 h-3.5" />
+              {baseLoading('approve') ? 'Processing...' : 'Approve'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleReject(ticket)}
+              disabled={baseLoading('reject')}
+              className="flex items-center gap-1 hover:border-[#dc3545] hover:text-[#dc3545]"
+            >
+              <ThumbsDown className="w-3.5 h-3.5" />
+              {baseLoading('reject') ? 'Processing...' : 'Reject'}
+            </Button>
+          </>
+        )}
+        {(ticket.status === 'Approved' || ticket.status === 'In Progress') && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleResolve(ticket)}
+            disabled={baseLoading('resolve')}
+            className="flex items-center gap-1 bg-[#0d6efd] border-transparent hover:bg-[#0b5ed7] text-white"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {baseLoading('resolve') ? 'Processing...' : 'Mark Resolved'}
+          </Button>
+        )}
+        {ticket.status === 'Rejected' && (
+          <span className="text-xs text-[#dc3545] font-bold">Ticket Rejected</span>
+        )}
+        {ticket.status === 'Completed' && (
+          <span className="text-xs text-[#198754] font-bold">✓ Resolved</span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 font-sans">
@@ -105,22 +200,36 @@ export const Maintenance: React.FC = () => {
             />
           </div>
 
+          {filteredRequests.length === 0 && (
+            <div className="text-center py-10 bg-white border border-[#dee2e6] rounded-card shadow-custom">
+              <Wrench className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-[#6c757d] font-semibold">No maintenance tickets found.</p>
+            </div>
+          )}
+
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredRequests.map(ticket => (
-                <Card key={ticket.id} title={ticket.assetName} subtitle={`Ticket ID: ${ticket.id}`} headerActions={<StatusBadge status={ticket.status} />}>
+                <Card
+                  key={ticket.id}
+                  title={ticket.assetName}
+                  subtitle={`Ticket ID: ${ticket.id}`}
+                  headerActions={<StatusBadge status={ticket.status} />}
+                >
                   <div className="space-y-4">
                     <p className="text-[14px] text-[#495057] font-semibold italic">"{ticket.description}"</p>
                     <div className="grid grid-cols-2 gap-2 text-xs border-t border-[#dee2e6] pt-3 text-[#6c757d]">
                       <div>
                         <span className="font-semibold text-gray-500 block">Priority</span>
-                        <span className={`font-bold ${ticket.priority === 'High' ? 'text-red-500' : 'text-gray-700'}`}>{ticket.priority}</span>
+                        <span className={`font-bold ${ticket.priority === 'High' ? 'text-red-500' : ticket.priority === 'Medium' ? 'text-[#b25e00]' : 'text-gray-700'}`}>{ticket.priority}</span>
                       </div>
                       <div>
                         <span className="font-semibold text-gray-500 block">Requested Date</span>
-                        <span className="font-bold text-gray-700">{ticket.requestedDate}</span>
+                        <span className="font-bold text-gray-700">{ticket.requestedDate ? new Date(ticket.requestedDate).toLocaleDateString() : '—'}</span>
                       </div>
                     </div>
+                    {/* Manager action buttons */}
+                    {renderManagerActions(ticket)}
                   </div>
                 </Card>
               ))}
@@ -135,16 +244,71 @@ export const Maintenance: React.FC = () => {
                     <th className="py-4 px-6 font-semibold">Priority</th>
                     <th className="py-4 px-6 font-semibold">Status</th>
                     <th className="py-4 px-6 font-semibold">Requested</th>
+                    {isManager && <th className="py-4 px-6 font-semibold">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#dee2e6]">
                   {filteredRequests.map(ticket => (
                     <tr key={ticket.id} className="hover:bg-gray-50">
-                      <td className="py-4 px-6 font-bold">{ticket.id}</td>
-                      <td className="py-4 px-6 font-semibold">{ticket.assetName} <span className="text-xs text-gray-400 block">{ticket.assetId}</span></td>
-                      <td className="py-4 px-6 font-semibold text-gray-700">{ticket.priority}</td>
+                      <td className="py-4 px-6 font-bold text-[#212529]">{ticket.id}</td>
+                      <td className="py-4 px-6 font-semibold">
+                        {ticket.assetName}
+                        <span className="text-xs text-gray-400 block">{ticket.assetId}</span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`font-bold text-sm ${ticket.priority === 'High' ? 'text-[#dc3545]' : ticket.priority === 'Medium' ? 'text-[#b25e00]' : 'text-gray-600'}`}>
+                          {ticket.priority}
+                        </span>
+                      </td>
                       <td className="py-4 px-6"><StatusBadge status={ticket.status} /></td>
-                      <td className="py-4 px-6 font-semibold text-gray-700">{ticket.requestedDate}</td>
+                      <td className="py-4 px-6 font-semibold text-gray-700">
+                        {ticket.requestedDate ? new Date(ticket.requestedDate).toLocaleDateString() : '—'}
+                      </td>
+                      {isManager && (
+                        <td className="py-4 px-6">
+                          <div className="flex gap-2 flex-wrap">
+                            {ticket.status === 'Pending' && (
+                              <>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleApprove(ticket)}
+                                  disabled={actionLoading === ticket.id + '_approve'}
+                                  className="flex items-center gap-1 bg-[#198754] border-transparent hover:bg-[#157347] text-white"
+                                >
+                                  <ThumbsUp className="w-3 h-3" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleReject(ticket)}
+                                  disabled={actionLoading === ticket.id + '_reject'}
+                                  className="flex items-center gap-1 hover:border-[#dc3545] hover:text-[#dc3545]"
+                                >
+                                  <ThumbsDown className="w-3 h-3" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {(ticket.status === 'Approved' || ticket.status === 'In Progress') && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleResolve(ticket)}
+                                disabled={actionLoading === ticket.id + '_resolve'}
+                                className="flex items-center gap-1 bg-[#0d6efd] border-transparent hover:bg-[#0b5ed7] text-white"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Resolve
+                              </Button>
+                            )}
+                            {(ticket.status === 'Rejected' || ticket.status === 'Completed') && (
+                              <StatusBadge status={ticket.status} />
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -166,36 +330,51 @@ export const Maintenance: React.FC = () => {
               </div>
 
               <div className="space-y-3.5 border-t border-[#dee2e6] pt-4">
-                <div>
-                  <div className="flex items-center justify-between text-xs font-bold text-[#495057] mb-1">
-                    <span>San Francisco HQ</span>
-                    <span>98.1%</span>
+                {[
+                  { label: 'San Francisco HQ', value: 98.1, color: '#198754' },
+                  { label: 'London Server Hub', value: 91.4, color: '#ffc107' },
+                  { label: 'New York Workspace', value: 93.0, color: '#198754' },
+                ].map(site => (
+                  <div key={site.label}>
+                    <div className="flex items-center justify-between text-xs font-bold text-[#495057] mb-1">
+                      <span>{site.label}</span>
+                      <span>{site.value}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${site.value}%`, backgroundColor: site.color }} />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-[#198754] h-full" style={{ width: '98.1%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-xs font-bold text-[#495057] mb-1">
-                    <span>London Server Hub</span>
-                    <span>91.4%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-[#ffc107] h-full" style={{ width: '91.4%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-xs font-bold text-[#495057] mb-1">
-                    <span>New York Workspace</span>
-                    <span>93.0%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-[#198754] h-full" style={{ width: '93%' }} />
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </Card>
+
+          {/* Status breakdown card */}
+          {isManager && (
+            <Card title="Ticket Workflow">
+              <div className="space-y-3 text-xs text-[#6c757d] select-none">
+                {[
+                  { label: 'Pending → Approved', color: 'bg-[#ffc107]' },
+                  { label: 'Approved → In Progress', color: 'bg-[#0dcaf0]' },
+                  { label: 'In Progress → Resolved', color: 'bg-[#198754]' },
+                  { label: 'Pending → Rejected', color: 'bg-[#dc3545]' },
+                ].map(step => (
+                  <div key={step.label} className="flex items-center gap-2.5">
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${step.color}`} />
+                    <span className="font-semibold">{step.label}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {isEmployee && (
+            <Card title="Your Submissions">
+              <p className="text-xs text-[#6c757d] font-semibold">
+                You can raise maintenance tickets for any asset. Tickets will be reviewed by an Asset Manager.
+              </p>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -243,8 +422,8 @@ export const Maintenance: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary">
-              Raise Ticket
+            <Button type="submit" variant="primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Raise Ticket'}
             </Button>
           </div>
         </form>
@@ -252,3 +431,4 @@ export const Maintenance: React.FC = () => {
     </div>
   );
 };
+
