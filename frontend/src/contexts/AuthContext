@@ -1,0 +1,129 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { User } from '../types';
+import apiClient from '../services/apiClient';
+
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+  updateProfile: (name: string, password: string, phone: string, location: string, latitude: number | null, longitude: number | null) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.post('/auth/login', { email, password });
+      const { token: receivedToken, ...userData } = res.data;
+      setToken(receivedToken);
+      setUser(userData);
+      localStorage.setItem('token', receivedToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (name: string, email: string, password: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.post('/auth/signup', { name, email, password });
+      const { token: receivedToken, ...userData } = res.data;
+      setToken(receivedToken);
+      setUser(userData);
+      localStorage.setItem('token', receivedToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Signup failed. Please try again.';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateProfile = async (name: string, password: string, phone: string, location: string, latitude: number | null, longitude: number | null) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.put('/users/profile', { name, password, phone, location, latitude, longitude });
+      setUser(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Profile update failed.';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const uploadAvatar = async (file: File) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await apiClient.post('/users/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUser(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Avatar upload failed.';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, signup, logout, updateProfile, uploadAvatar, isLoading, error }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
