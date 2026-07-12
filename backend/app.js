@@ -14,6 +14,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'API is running' });
 });
 
+<<<<<<< HEAD
 // Root Route
 app.get('/', (req, res) => {
   res.status(200).json({ message: 'Welcome to the AssetFlow Enterprise API! Use /api/health for system status.' });
@@ -37,5 +38,10 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/audits', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/auth', authRoutes);
+=======
+// We will mount routes here soon
+const assetRoutes = require('./routes/assetRoutes');
+app.use('/api/assets', assetRoutes);
+>>>>>>> 24d657a (version-1)
 
 module.exports = app;
