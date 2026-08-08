@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
-import Papa from 'papaparse';
+import * as Papa from 'papaparse';
 import { PageHeader } from '../components/PageHeader';
 import { KPICard } from '../components/KPICard';
 import { Table } from '../components/Table';
@@ -27,7 +27,7 @@ const assetSchema = z.object({
 type AssetFormSchema = z.infer<typeof assetSchema>;
 
 export const Assets: React.FC = () => {
-  const { assets, addAsset, allocations, maintenance } = useAppState();
+  const { assets, addAsset, allocations, maintenance, departments, categories } = useAppState();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -74,7 +74,7 @@ export const Assets: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const categories = ['All', 'IT Hardware', 'Networking', 'Accessories', 'Facilities', 'Furniture', 'Lab Equipment'];
+  const categoryOptions = ['All', ...categories.map(c => c.name)];
 
   const handleExport = () => {
     const exportData = filteredAssets.map(a => ({
@@ -182,7 +182,7 @@ export const Assets: React.FC = () => {
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="appearance-none bg-white border border-[#ced4da] rounded-input h-11 px-4 pr-10 text-[15px] font-semibold text-[#495057] focus:outline-none cursor-pointer"
           >
-            {categories.map(c => (
+            {categoryOptions.map(c => (
               <option key={c} value={c}>{c} Category</option>
             ))}
           </select>
@@ -217,24 +217,17 @@ export const Assets: React.FC = () => {
             <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[14px] font-semibold text-[#495057]">Category</label>
               <select {...register('category')} className="h-[44px] px-3.5 bg-white border border-[#ced4da] rounded-input text-[#212529] focus:outline-none focus:border-[#6c757d]">
-                <option value="IT Hardware">IT Hardware</option>
-                <option value="Networking">Networking</option>
-                <option value="Accessories">Accessories</option>
-                <option value="Facilities">Facilities</option>
-                <option value="Furniture">Furniture</option>
-                <option value="Lab Equipment">Lab Equipment</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
               </select>
             </div>
             <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[14px] font-semibold text-[#495057]">Department</label>
               <select {...register('department')} className="h-[44px] px-3.5 bg-white border border-[#ced4da] rounded-input text-[#212529] focus:outline-none focus:border-[#6c757d]">
-                <option value="Engineering">Engineering</option>
-                <option value="Product">Product</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Finance">Finance</option>
-                <option value="HR">HR</option>
-                <option value="Design">Design</option>
-                <option value="IT">IT</option>
+                {departments.filter(d => d.status !== 'Inactive').map(d => (
+                  <option key={d.id} value={d.name}>{d.name}</option>
+                ))}
               </select>
             </div>
           </div>

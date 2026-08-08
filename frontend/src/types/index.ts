@@ -1,4 +1,4 @@
-export type AssetStatus = 'Available' | 'Allocated' | 'Reserved' | 'Maintenance' | 'Disposed' | 'Lost';
+export type AssetStatus = 'Available' | 'Allocated' | 'Reserved' | 'Maintenance' | 'Under Maintenance' | 'Disposed' | 'Lost';
 
 export interface User {
   id: string;
@@ -7,6 +7,10 @@ export interface User {
   role: string;
   avatar?: string;
   site?: string;
+  location?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Site {
@@ -24,6 +28,7 @@ export interface Asset {
   purchaseDate: string;
   purchaseValue: number;
   location: string;
+  tag?: string;
   qrCode?: string;
 }
 
@@ -36,7 +41,8 @@ export interface Allocation {
   allocatedToEmail: string;
   department: string;
   allocatedDate: string;
-  status: 'Active' | 'Returned';
+  dueDate?: string;
+  status: 'Active' | 'Returned' | 'Pending Return';
 }
 
 export interface TransferRequest {
@@ -58,8 +64,9 @@ export interface MaintenanceRequest {
   assetName: string;
   description: string;
   priority: 'Low' | 'Medium' | 'High';
-  status: 'Pending' | 'In Progress' | 'Completed';
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Approved' | 'Rejected';
   requestedDate: string;
+  reportedDate?: string;
   facilityHealth: string;
 }
 
@@ -70,9 +77,24 @@ export interface AuditCycle {
   endDate: string;
   auditor: string;
   status: 'Pending' | 'In Progress' | 'Completed';
-  progress: number; // percentage
+  progress: number;
   missingAssets: number;
   discrepancies: number;
+  auditItems?: AuditItem[];
+}
+
+export interface AuditItem {
+  id: string;
+  auditCycleId: string;
+  assetId: string;
+  status: string;
+  notes?: string | null;
+  asset?: {
+    id: string;
+    name: string;
+    tag?: string;
+    status?: string;
+  };
 }
 
 export interface Notification {
@@ -93,3 +115,21 @@ export interface Booking {
   endDate: string;   // ISO date string
   status: 'Confirmed' | 'Cancelled';
 }
+
+export interface ActivityLog {
+  id: string;
+  action: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface DashboardStats {
+  totalAssets: number;
+  allocatedAssets: number;
+  availableAssets: number;
+  pendingTransfers: number;
+  maintenanceToday: number;
+  activeBookings: number;
+  overdueAllocations: Allocation[];
+}
+

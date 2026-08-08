@@ -1,41 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Table } from '../components/Table';
-import { Button } from '../components/Button';
 import { KPICard } from '../components/KPICard';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Download, Calendar, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
+import { Calendar, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
+import type { ActivityLog } from '../types';
 
-const trendData = [
-  { month: 'Jan', allocations: 24, returns: 18 },
-  { month: 'Feb', allocations: 30, returns: 20 },
-  { month: 'Mar', allocations: 45, returns: 28 },
-  { month: 'Apr', allocations: 35, returns: 32 },
-  { month: 'May', allocations: 55, returns: 40 },
-  { month: 'Jun', allocations: 60, returns: 45 },
-  { month: 'Jul', allocations: 48, returns: 42 }
-];
-
-const categoryData = [
-  { name: 'IT Hardware', value: 120500, count: 52 },
-  { name: 'Networking', value: 65000, count: 18 },
-  { name: 'Facilities', value: 18400, count: 12 },
-  { name: 'Furniture', value: 34900, count: 24 },
-  { name: 'Accessories', value: 5800, count: 35 }
-];
-
-const reportHistory = [
-  { id: 'RPT-001', name: 'Q2 2026 Asset Inventory Audit Report', date: '2026-07-01', size: '2.4 MB', author: 'Robert Fox' },
-  { id: 'RPT-002', name: 'Corporate Hardware Depreciation Summary', date: '2026-06-15', size: '1.8 MB', author: 'Albert Flores' },
-  { id: 'RPT-003', name: 'Facilities Asset Health Analysis', date: '2026-06-02', size: '4.1 MB', author: 'Darrell Steward' },
-  { id: 'RPT-004', name: 'FY26 Q1 Capital Investment Log', date: '2026-05-10', size: '1.2 MB', author: 'Bessie Cooper' }
-];
-
-const COLORS = ['#4f46e5', '#06b6d4', '#10b981', '#8b5cf6', '#f59e0b'];
+const COLORS = ['#4f46e5', '#06b6d4', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#f43f5e'];
 
 export const Reports: React.FC = () => {
-  const [dateRange] = useState('Last 30 Days');
+  const [reportData, setReportData] = useState<any>(null);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const [reportsRes, logsRes] = await Promise.all([
+          apiClient.get('/analytics/reports'),
+          apiClient.get('/activity-logs'),
+        ]);
+        setReportData(reportsRes.data);
+        setActivityLogs(logsRes.data || []);
+      } catch (e) {
+        console.error('Failed to fetch reports', e);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  const totalCapital = reportData?.totalCapital || 0;
+
+  const depreciatedValue = useMemo(() => {
+    const breakdown = reportData?.categoryBreakdown || [];
+    if (!breakdown.length || totalCapital === 0) return 0;
+    let remaining = 0;
+    breakdown.forEach((cat: { value: number; depreciationRate?: number | null }) => {
+      const rate = cat.depreciationRate ?? 0;
+      remaining += cat.value * (1 - rate / 100);
+    });
+    return Math.round(remaining);
+  }, [reportData, totalCapital]);
+
+  const avgLifespan = useMemo(() => {
+    const breakdown = reportData?.categoryBreakdown || [];
+    const rates = breakdown
+      .map((c: { depreciationRate?: number | null }) => c.depreciationRate)
+      .filter((r: number | null | undefined) => r != null && r > 0) as number[];
+    if (!rates.length) return '—';
+    const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+    return avgRate > 0 ? `${(100 / avgRate).toFixed(1)} Years` : '—';
+  }, [reportData]);
+
+  const categoryData = reportData?.categoryBreakdown || [];
+  const trendData = reportData?.allocationTrend || [];
+
+  const reportHistory = activityLogs
+    .filter(log => /audit|report|compliance|depreciation|capital/i.test(log.action + log.description))
+    .slice(0, 10)
+    .map(log => ({
+      id: log.id,
+      name: log.description,
+      date: log.createdAt?.slice(0, 10) || '—',
+      size: '—',
+      author: log.action,
+    }));
 
   return (
     <div className="space-y-6 font-sans">
@@ -43,33 +73,22 @@ export const Reports: React.FC = () => {
         title="Analytics & Reports"
         description="View enterprise asset distribution, financial value and download detailed compliance logs."
         actions={
-          <div className="flex gap-2">
-            <div className="flex border border-slate-200 rounded-btn overflow-hidden select-none bg-white shadow-sm">
-              <button
-                value={dateRange}
-                className="h-[44px] px-4 bg-transparent border-0 text-[15px] font-semibold text-slate-700 focus:outline-none flex items-center gap-2"
-              >
-                <Calendar className="w-5 h-5 text-primary" />
-                {dateRange}
-              </button>
+          <div className="flex border border-slate-200 rounded-btn overflow-hidden select-none bg-white shadow-sm">
+            <div className="h-[44px] px-4 bg-transparent text-[15px] font-semibold text-slate-700 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              Live Data
             </div>
-            <Button variant="primary" className="flex items-center gap-2">
-              <Download className="w-5 h-5" />
-              Download All PDF
-            </Button>
           </div>
         }
       />
 
-      {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <KPICard title="Capital Investment" value="$244,600" icon={DollarSign} iconBgColor="bg-[#10b981]/10" iconColor="text-[#10b981]" />
-        <KPICard title="Depreciated Value" value="$192,200" icon={TrendingUp} iconBgColor="bg-destructive/10" iconColor="text-destructive" />
-        <KPICard title="Avg. Asset Lifespan" value="4.8 Years" icon={RefreshCw} iconBgColor="bg-primary/10" iconColor="text-primary" />
+        <KPICard title="Capital Investment" value={`$${totalCapital.toLocaleString()}`} icon={DollarSign} iconBgColor="bg-[#10b981]/10" iconColor="text-[#10b981]" />
+        <KPICard title="Depreciated Value" value={`$${depreciatedValue.toLocaleString()}`} icon={TrendingUp} iconBgColor="bg-destructive/10" iconColor="text-destructive" />
+        <KPICard title="Avg. Asset Lifespan" value={avgLifespan} icon={RefreshCw} iconBgColor="bg-primary/10" iconColor="text-primary" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Allocation Line Chart - Left 2 Columns */}
         <Card title="Allocation & Return Activity" className="lg:col-span-2">
           <div className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -85,30 +104,25 @@ export const Reports: React.FC = () => {
           </div>
         </Card>
 
-        {/* Category breakdown Pie Chart - Right Column */}
         <Card title="Capital Breakdown">
           <div className="h-[220px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
-              </PieChart>
-            </ResponsiveContainer>
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {categoryData.map((_: unknown, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-slate-400">No data available</p>
+            )}
           </div>
           <div className="space-y-2.5 mt-4 border-t border-[#f1f5f9] pt-4">
-            {categoryData.map((cat, idx) => (
+            {categoryData.map((cat: { name: string; value: number }, idx: number) => (
               <div key={cat.name} className="flex items-center justify-between text-xs select-none">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
@@ -121,26 +135,15 @@ export const Reports: React.FC = () => {
         </Card>
       </div>
 
-      {/* Generated Reports History Log */}
-      <Card title="Available Compliance Reports">
+      <Card title="Compliance Activity Log">
         <Table
           data={reportHistory}
+          emptyMessage="No compliance activity logged yet."
           columns={[
-            { header: 'Report ID', accessorKey: 'id' },
-            { header: 'Report File Name', accessorKey: 'name' },
-            { header: 'Published Date', accessorKey: 'date' },
-            { header: 'File Size', accessorKey: 'size' },
-            { header: 'Generated By', accessorKey: 'author' },
-            {
-              header: 'Actions',
-              accessorKey: 'actions',
-              render: () => (
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
-                  <Download className="w-4 h-4" />
-                  PDF
-                </Button>
-              )
-            }
+            { header: 'Log ID', accessorKey: 'id' },
+            { header: 'Activity', accessorKey: 'name', className: 'max-w-md truncate' },
+            { header: 'Date', accessorKey: 'date' },
+            { header: 'Type', accessorKey: 'author' },
           ]}
         />
       </Card>

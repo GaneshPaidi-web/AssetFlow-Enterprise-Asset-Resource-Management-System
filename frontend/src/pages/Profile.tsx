@@ -1,30 +1,58 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
-import { User, Shield, Mail, MapPin, Camera, Save, X, Phone, Navigation } from 'lucide-react';
+import { Shield, Mail, MapPin, Camera, X, Phone, Navigation } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 
 export const Profile: React.FC = () => {
-  const { user, updateProfile, uploadAvatar } = useAuth();
-  
+  const { user, updateProfile, uploadAvatar, refreshProfile, isLoading, error } = useAuth();
+
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(user?.name || '');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [location, setLocation] = useState(user?.location || '');
-  const [latitude, setLatitude] = useState<number | null>(user?.latitude || null);
-  const [longitude, setLongitude] = useState<number | null>(user?.longitude || null);
+  const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const syncFormFromUser = () => {
+    setName(user?.name || '');
+    setPassword('');
+    setPhone(user?.phone || '');
+    setLocation(user?.location || '');
+    setLatitude(user?.latitude ?? null);
+    setLongitude(user?.longitude ?? null);
+    setSaveError(null);
+  };
+
+  useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      syncFormFromUser();
+    }
+  }, [user, isEditing]);
+
   const handleSave = async () => {
+    setSaveError(null);
     try {
       await updateProfile(name, password, phone, location, latitude, longitude);
       setIsEditing(false);
-    } catch (e) {
-      // Error handled in context
+      setPassword('');
+    } catch (e: unknown) {
+      setSaveError((e as Error).message);
     }
+  };
+
+  const handleCancel = () => {
+    syncFormFromUser();
+    setIsEditing(false);
   };
 
   const handleGetLocation = () => {
@@ -38,7 +66,7 @@ export const Profile: React.FC = () => {
         setLongitude(position.coords.longitude);
         setLocation(`Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`);
       },
-      (error) => {
+      () => {
         alert('Unable to retrieve your location');
       }
     );
@@ -46,12 +74,15 @@ export const Profile: React.FC = () => {
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      try {
-        await uploadAvatar(file);
-      } catch (err) {
-        // Error handled in context
-      }
+    if (!file) return;
+
+    setSaveError(null);
+    try {
+      await uploadAvatar(file);
+    } catch (err: unknown) {
+      setSaveError((err as Error).message);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -62,8 +93,14 @@ export const Profile: React.FC = () => {
         description="View your corporate directory credentials, access permissions and active workspace location."
       />
 
+      {(error || saveError) && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-[13px] text-red-600 font-semibold">
+          <X className="w-4 h-4 shrink-0" />
+          {saveError || error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* User Card - Left Column */}
         <Card className="text-center py-8">
           <div className="relative inline-block select-none group">
             {user?.avatar ? (
@@ -77,29 +114,36 @@ export const Profile: React.FC = () => {
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
-            
-            <button 
+
+            <button
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-[#dee2e6] rounded-full flex items-center justify-center text-[#495057] shadow-sm hover:text-[#0d6efd] hover:border-[#0d6efd] transition-colors"
+              disabled={isLoading}
+              className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-[#dee2e6] rounded-full flex items-center justify-center text-[#495057] shadow-sm hover:text-[#0d6efd] hover:border-[#0d6efd] transition-colors disabled:opacity-50"
               title="Change Photo"
             >
               <Camera className="w-4 h-4" />
             </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleAvatarChange} 
-              accept="image/*" 
-              className="hidden" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarChange}
+              accept="image/*"
+              className="hidden"
             />
           </div>
-          
+
           {isEditing ? (
             <div className="mt-6 space-y-4 text-left px-4">
               <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label="New Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Leave blank to keep current password" />
+              <Input
+                label="New Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Leave blank to keep current password"
+              />
               <Input label="Phone Number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              
+
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-[#495057] uppercase tracking-wider mb-1">Location</label>
                 <div className="flex gap-2">
@@ -114,14 +158,16 @@ export const Profile: React.FC = () => {
                     <Navigation className="w-4 h-4" />
                   </Button>
                 </div>
-                {(latitude && longitude) && (
+                {(latitude != null && longitude != null) && (
                   <p className="text-[11px] text-[#6c757d] mt-1">GPS Coordinates saved.</p>
                 )}
               </div>
 
               <div className="flex gap-2 justify-end mt-4">
-                <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save</Button>
+                <Button variant="secondary" onClick={handleCancel} disabled={isLoading}>Cancel</Button>
+                <Button variant="primary" onClick={handleSave} disabled={isLoading}>
+                  {isLoading ? 'Saving...' : 'Save'}
+                </Button>
               </div>
             </div>
           ) : (
@@ -157,7 +203,6 @@ export const Profile: React.FC = () => {
           )}
         </Card>
 
-        {/* Audit / Action Logs - Right 2 Columns */}
         <div className="lg:col-span-2 space-y-6 select-none">
           <Card title="Security Permissions Roster" subtitle="Verify your authenticated roles and action thresholds.">
             <div className="space-y-4">
@@ -204,7 +249,7 @@ export const Profile: React.FC = () => {
   );
 };
 
-const Edit2Icon = (props: any) => (
+const Edit2Icon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     {...props}
     xmlns="http://www.w3.org/2000/svg"

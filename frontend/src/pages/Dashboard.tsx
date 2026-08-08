@@ -28,18 +28,8 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import type { DashboardStats, ActivityLog, Allocation } from '../types';
-
-const chartData = [
-  { month: 'Jan', value: 12 },
-  { month: 'Feb', value: 18 },
-  { month: 'Mar', value: 15 },
-  { month: 'Apr', value: 25 },
-  { month: 'May', value: 22 },
-  { month: 'Jun', value: 30 },
-  { month: 'Jul', value: 28 }
-];
 
 const registerSchema = z.object({
   name: z.string().min(3, { message: 'Asset name must be at least 3' }),
@@ -58,9 +48,11 @@ type RegisterSchema = z.infer<typeof registerSchema>;
 type AllocateSchema = z.infer<typeof allocateSchema>;
 
 export const Dashboard: React.FC = () => {
-  const { assets, maintenance, addAsset, allocateAsset } = useAppState();
+  const { assets, maintenance, addAsset, allocateAsset, departments, categories, employees, syncState } = useAppState();
   const { user } = useAuth();
   const firstName = user?.name?.split(' ')[0] || 'there';
+
+  const [allocationTrend, setAllocationTrend] = useState<{ month: string; allocations: number }[]>([]);
 
   // Live KPI data from API
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
@@ -88,8 +80,18 @@ export const Dashboard: React.FC = () => {
       }
     };
 
+    const fetchTrend = async () => {
+      try {
+        const res = await apiClient.get('/analytics/reports');
+        setAllocationTrend(res.data?.allocationTrend || []);
+      } catch (e) {
+        console.error('Failed to fetch allocation trend', e);
+      }
+    };
+
     fetchDashboard();
     fetchActivity();
+    fetchTrend();
   }, []);
 
   // Modals
@@ -101,24 +103,26 @@ export const Dashboard: React.FC = () => {
   const regForm = useForm<any>({ resolver: zodResolver(registerSchema) });
   const allocForm = useForm<AllocateSchema>({ resolver: zodResolver(allocateSchema) });
 
-  const onRegisterSubmit = (data: RegisterSchema) => {
-    addAsset({
+  const onRegisterSubmit = async (data: RegisterSchema) => {
+    await addAsset({
       name: data.name,
       serialNumber: data.serialNumber,
       category: data.category,
       department: 'Unassigned',
       purchaseDate: new Date().toISOString().split('T')[0],
       purchaseValue: data.purchaseValue,
-      location: 'San Francisco HQ',
+      location: user?.site || 'Main Office',
     });
     setIsRegOpen(false);
     regForm.reset();
+    syncState();
   };
 
-  const onAllocateSubmit = (data: AllocateSchema) => {
-    allocateAsset(data.assetId, data.employee, data.department);
+  const onAllocateSubmit = async (data: AllocateSchema) => {
+    await allocateAsset(data.assetId, data.employee, data.department);
     setIsAllocOpen(false);
     allocForm.reset();
+    syncState();
   };
 
   // KPIs - prefer live API stats, fall back to computed from context
@@ -166,7 +170,7 @@ export const Dashboard: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-white m-0">AssetFlow Corporate ERP</h2>
           <p className="text-white/80 text-[15px] font-medium m-0 mt-2 max-w-xl">
-            You are viewing the San Francisco HQ command summary. All assets, pending allocations, and repair requests are fully synced.
+            You are viewing the {user?.site || 'Main Office'} command summary. All assets, pending allocations, and repair requests are fully synced.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 bg-white/10 px-4 py-2.5 rounded-btn border border-white/10">
@@ -257,12 +261,12 @@ export const Dashboard: React.FC = () => {
         <Card title="Allocation Trend" className="lg:col-span-2">
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart data={allocationTrend.length ? allocationTrend : [{ month: '—', allocations: 0 }]}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dee2e6" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: '12px', fill: '#6c757d' }} />
                 <YAxis tickLine={false} axisLine={false} style={{ fontSize: '12px', fill: '#6c757d' }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#6c757d" radius={[4, 4, 0, 0]} barSize={32} />
+                <Bar dataKey="allocations" fill="#6c757d" radius={[4, 4, 0, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -376,10 +380,9 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-col gap-1.5 text-left">
             <label className="text-[14px] font-semibold text-[#495057]">Category</label>
             <select {...regForm.register('category')} className="h-[44px] px-3.5 bg-white border border-[#ced4da] rounded-input text-[#212529]">
-              <option value="IT Hardware">IT Hardware</option>
-              <option value="Facilities">Facilities</option>
-              <option value="Networking">Networking</option>
-              <option value="Accessories">Accessories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
             </select>
           </div>
           <Input label="Purchase Value ($)" type="number" placeholder="2000" error={regForm.formState.errors.purchaseValue?.message as string} {...regForm.register('purchaseValue')} />
@@ -403,15 +406,16 @@ export const Dashboard: React.FC = () => {
             </select>
             {allocForm.formState.errors.assetId && <span className="text-xs text-[#dc3545] font-semibold">{allocForm.formState.errors.assetId.message}</span>}
           </div>
-          <Input label="Allocated Employee Name" placeholder="e.g. Jane Cooper" error={allocForm.formState.errors.employee?.message} {...allocForm.register('employee')} />
+          <Input label="Allocated Employee Name" placeholder="e.g. Jane Cooper" error={allocForm.formState.errors.employee?.message} {...allocForm.register('employee')} list="dashboard-employees" />
+          <datalist id="dashboard-employees">
+            {employees.map(e => <option key={e.id} value={e.name} />)}
+          </datalist>
           <div className="flex flex-col gap-1.5 text-left">
             <label className="text-[14px] font-semibold text-[#495057]">Department</label>
             <select {...allocForm.register('department')} className="h-[44px] px-3.5 bg-white border border-[#ced4da] rounded-input text-[#212529]">
-              <option value="Engineering">Engineering</option>
-              <option value="Product">Product</option>
-              <option value="Marketing">Marketing</option>
-              <option value="HR">HR</option>
-              <option value="Finance">Finance</option>
+              {departments.filter(d => d.status !== 'Inactive').map(d => (
+                <option key={d.id} value={d.name}>{d.name}</option>
+              ))}
             </select>
           </div>
           <div className="flex justify-end gap-3 border-t border-[#dee2e6] pt-4 mt-6">

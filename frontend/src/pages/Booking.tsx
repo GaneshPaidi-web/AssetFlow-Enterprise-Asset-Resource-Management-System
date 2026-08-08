@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppState } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -26,13 +27,15 @@ const bookingSchema = z.object({
 type BookingFormSchema = z.infer<typeof bookingSchema>;
 
 export const Booking: React.FC = () => {
-  const { bookings, assets, createBooking } = useAppState();
+  const { bookings, assets, createBooking, cancelBooking } = useAppState();
+  const { user } = useAuth();
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Form setup
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<BookingFormSchema>({
-    resolver: zodResolver(bookingSchema)
+    resolver: zodResolver(bookingSchema),
+    defaultValues: { bookedBy: user?.name || '' },
   });
 
   // Available assets to book
@@ -45,7 +48,7 @@ export const Booking: React.FC = () => {
   const watchedEndDate = watch('endDate');
   const watchedEndTime = watch('endTime');
 
-  const onSubmit = (data: BookingFormSchema) => {
+  const onSubmit = async (data: BookingFormSchema) => {
     const startStr = `${data.startDate}T${data.startTime}:00`;
     const endStr = `${data.endDate}T${data.endTime}:00`;
     const start = new Date(startStr);
@@ -56,39 +59,36 @@ export const Booking: React.FC = () => {
       return;
     }
 
-    // Check overlap conflict with existing bookings
-    const conflict = bookings.find(b => {
-      if (b.assetId !== data.assetId || b.status === 'Cancelled') return false;
-      const bStart = new Date(b.startDate);
-      const bEnd = new Date(b.endDate);
-      return start < bEnd && end > bStart;
-    });
-
-    if (conflict) {
-      setConflictError(`Time conflict: Asset is already booked by ${conflict.bookedBy} during this period.`);
-      return;
-    }
-
     setConflictError(null);
-    createBooking({
-      assetId: data.assetId,
-      assetName: assets.find(a => a.id === data.assetId)?.name || 'Unknown Asset',
-      bookedBy: data.bookedBy,
-      startDate: start.toISOString(),
-      endDate: end.toISOString()
-    });
-
-    setSuccessMessage('Booking successfully confirmed!');
-    reset();
-    setTimeout(() => setSuccessMessage(null), 3000);
+    setSubmitting(true);
+    try {
+      await createBooking({
+        assetId: data.assetId,
+        assetName: assets.find(a => a.id === data.assetId)?.name || 'Unknown Asset',
+        bookedBy: data.bookedBy,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      });
+      setSuccessMessage('Booking successfully confirmed!');
+      reset({ bookedBy: user?.name || '' });
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (e: unknown) {
+      if ((e as Error).message === 'CONFLICT') {
+        setConflictError('Time conflict: this asset is already booked during the selected period.');
+      } else {
+        setConflictError('Failed to create booking. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Convert bookings for React Big Calendar format
-  const calendarEvents = bookings.map(b => ({
+  const activeBookings = bookings.filter(b => b.status !== 'Cancelled');
+  const calendarEvents = activeBookings.map(b => ({
     id: b.id,
     title: `${b.assetName} - ${b.bookedBy}`,
     start: new Date(b.startDate),
-    end: new Date(b.endDate)
+    end: new Date(b.endDate),
   }));
 
   return (
@@ -192,8 +192,8 @@ export const Booking: React.FC = () => {
                 />
               </div>
 
-              <Button type="submit" variant="primary" className="w-full mt-2">
-                Confirm Reservation
+              <Button type="submit" variant="primary" className="w-full mt-2" disabled={submitting}>
+                {submitting ? 'Booking...' : 'Confirm Reservation'}
               </Button>
             </form>
           </Card>
@@ -201,11 +201,11 @@ export const Booking: React.FC = () => {
           {/* Upcoming List */}
           <Card title="Upcoming Bookings" className="max-h-[300px] overflow-y-auto">
             <div className="space-y-3">
-              {bookings.length === 0 ? (
+              {activeBookings.length === 0 ? (
                 <p className="text-xs text-[#6c757d]">No upcoming reservations found.</p>
               ) : (
-                bookings.map(b => (
-                  <div key={b.id} className="flex items-start justify-between border-b border-[#dee2e6] pb-3 last:border-0 last:pb-0">
+                activeBookings.map(b => (
+                  <div key={b.id} className="flex items-start justify-between border-b border-[#dee2e6] pb-3 last:border-0 last:pb-0 gap-2">
                     <div>
                       <h4 className="text-[14px] font-bold text-[#212529]">{b.assetName}</h4>
                       <div className="flex items-center gap-1 text-[12px] text-[#6c757d] font-semibold mt-1">
@@ -213,10 +213,17 @@ export const Booking: React.FC = () => {
                         <span>Reserved by {b.bookedBy}</span>
                       </div>
                     </div>
-                    <div className="text-right text-[11px] text-[#6c757d] font-bold">
-                      <p>{moment(b.startDate).format('MMM D, h:mm a')}</p>
-                      <p className="text-white/0 select-none">-</p>
-                      <p>{moment(b.endDate).format('MMM D, h:mm a')}</p>
+                    <div className="text-right shrink-0">
+                      <div className="text-[11px] text-[#6c757d] font-bold">
+                        <p>{moment(b.startDate).format('MMM D, h:mm a')}</p>
+                        <p>{moment(b.endDate).format('MMM D, h:mm a')}</p>
+                      </div>
+                      <button
+                        onClick={() => cancelBooking(b.id)}
+                        className="text-[11px] font-bold text-[#dc3545] hover:underline mt-1"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 ))

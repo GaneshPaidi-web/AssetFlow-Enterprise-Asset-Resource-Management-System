@@ -3,7 +3,7 @@ import { cn } from '../utils/cn';
 import type { AssetStatus } from '../types';
 
 interface StatusBadgeProps {
-  status: AssetStatus | 'Active' | 'Returned' | 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed';
+  status: AssetStatus | 'Active' | 'Returned' | 'Pending Return' | 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed';
   className?: string;
 }
 
@@ -20,6 +20,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
     // Allocation/Booking/Transfer statuses
     Active: 'bg-[#0d6efd]/10 text-[#0d6efd] border border-[#0d6efd]/20',
     Returned: 'bg-[#198754]/10 text-[#198754] border border-[#198754]/20',
+    'Pending Return': 'bg-[#ffc107]/10 text-[#b25e00] border border-[#ffc107]/20',
     Pending: 'bg-[#ffc107]/10 text-[#b25e00] border border-[#ffc107]/20',
     Approved: 'bg-[#198754]/10 text-[#198754] border border-[#198754]/20',
     Rejected: 'bg-[#dc3545]/10 text-[#dc3545] border border-[#dc3545]/20',

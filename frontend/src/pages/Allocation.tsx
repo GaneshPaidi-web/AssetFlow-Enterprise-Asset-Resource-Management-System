@@ -42,7 +42,9 @@ export const AllocationPage: React.FC = () => {
     initiateReturn,
     requestTransfer,
     approveTransfer,
-    rejectTransfer
+    rejectTransfer,
+    departments,
+    employees,
   } = useAppState();
 
   // Active state lists
@@ -61,7 +63,7 @@ export const AllocationPage: React.FC = () => {
 
   // Allocation Form State
   const [isAllocOpen, setIsAllocOpen] = useState(false);
-  const [conflictAsset, setConflictAsset] = useState<{ assetId: string, employee: string } | null>(null);
+  const [conflictAsset, setConflictAsset] = useState<{ assetId: string; employee: string; department: string } | null>(null);
   
   const allocForm = useForm<AllocateSchema>({ resolver: zodResolver(allocateSchema) });
   const unallocatedAssets = assets.filter(a => a.status === 'Available');
@@ -75,7 +77,7 @@ export const AllocationPage: React.FC = () => {
       allocForm.reset();
     } catch (e: any) {
       if (e.message === 'CONFLICT') {
-        setConflictAsset({ assetId: data.assetId, employee: data.employee });
+        setConflictAsset({ assetId: data.assetId, employee: data.employee, department: data.department });
       }
     }
   };
@@ -83,7 +85,7 @@ export const AllocationPage: React.FC = () => {
   const handleRequestTransfer = async () => {
     if (conflictAsset) {
       try {
-        await requestTransfer(conflictAsset.assetId, conflictAsset.employee);
+        await requestTransfer(conflictAsset.assetId, conflictAsset.employee, conflictAsset.department);
         setIsAllocOpen(false);
         setConflictAsset(null);
         allocForm.reset();
@@ -102,7 +104,7 @@ export const AllocationPage: React.FC = () => {
       <PageHeader
         title="Asset Allocations"
         description="Oversee and process physical resource allocations, check-ins, returns, and employee-to-employee transfer approvals."
-        action={
+        actions={
           ['Admin', 'Asset Manager'].includes(user?.role || '') && (
             <Button variant="primary" onClick={() => { setConflictAsset(null); setIsAllocOpen(true); }} className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -317,15 +319,16 @@ export const AllocationPage: React.FC = () => {
             </select>
             {allocForm.formState.errors.assetId && <span className="text-xs text-[#dc3545] font-semibold">{allocForm.formState.errors.assetId.message}</span>}
           </div>
-          <Input label="Allocated Employee Name" placeholder="e.g. Jane Cooper" error={allocForm.formState.errors.employee?.message} {...allocForm.register('employee')} />
+          <Input label="Allocated Employee Name" placeholder="e.g. Jane Cooper" error={allocForm.formState.errors.employee?.message} {...allocForm.register('employee')} list="allocation-employees" />
+          <datalist id="allocation-employees">
+            {employees.map(e => <option key={e.id} value={e.name} />)}
+          </datalist>
           <div className="flex flex-col gap-1.5 text-left">
             <label className="text-[14px] font-semibold text-[#495057]">Department</label>
             <select {...allocForm.register('department')} className="h-[44px] px-3.5 bg-white border border-[#ced4da] rounded-input text-[#212529]">
-              <option value="Engineering">Engineering</option>
-              <option value="Product">Product</option>
-              <option value="Marketing">Marketing</option>
-              <option value="HR">HR</option>
-              <option value="Finance">Finance</option>
+              {departments.filter(d => d.status !== 'Inactive').map(d => (
+                <option key={d.id} value={d.name}>{d.name}</option>
+              ))}
             </select>
           </div>
 

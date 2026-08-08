@@ -1,38 +1,119 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppState } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Table } from '../components/Table';
 import { StatusBadge } from '../components/StatusBadge';
-import { ClipboardCheck, ShieldAlert, Award, FileSearch, HelpCircle, QrCode, ScanLine } from 'lucide-react';
+import { ClipboardCheck, Award, QrCode, ScanLine } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
+import { apiClient } from '../services/apiClient';
 
 export const Audit: React.FC = () => {
-  const { audits } = useAppState();
-  const [isScannerOpen, setIsScannerOpen] = React.useState(false);
-  const [scanResult, setScanResult] = React.useState<string | null>(null);
-  const [manualAssetId, setManualAssetId] = React.useState('');
+  const { audits, employees, assets, syncState } = useAppState();
+  const { user } = useAuth();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanResult, setScanResult] = useState<string | null>(null);
+  const [manualAssetId, setManualAssetId] = useState('');
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
-  // Active cycles
   const activeCycle = audits.find(a => a.status === 'In Progress');
   const pastCycles = audits.filter(a => a.status === 'Completed');
 
-  const discrepancyData = [
-    { id: '1', assetId: 'AST-005', assetName: 'Cisco Switch', type: 'Location Mismatch', status: 'Pending Review', reportedBy: 'Robert Fox' },
-    { id: '2', assetId: 'AST-015', assetName: 'Canon Camera', type: 'Status Conflict', status: 'Marked Lost', reportedBy: 'Darrell Steward' }
-  ];
+  const auditItems = activeCycle?.auditItems || [];
+  const verifiedCount = auditItems.filter(i => i.status === 'Verified').length;
+  const targetAssets = assets.length;
+
+  const discrepancyData = useMemo(() =>
+    auditItems
+      .filter(i => i.status === 'Missing' || i.status === 'Damaged')
+      .map(i => ({
+        id: i.id,
+        assetId: i.asset?.tag || i.assetId,
+        assetName: i.asset?.name || i.assetId,
+        type: i.status === 'Missing' ? 'Missing Asset' : 'Damaged Asset',
+        status: i.status,
+        reportedBy: activeCycle?.auditor || '—',
+      })),
+    [auditItems, activeCycle]
+  );
+
+  const complianceTeam = employees.filter(e =>
+    ['Admin', 'Asset Manager', 'Department Head'].includes(e.role)
+  ).slice(0, 5);
+
+  const resolveAssetId = (input: string) => {
+    const trimmed = input.trim();
+    const byId = assets.find(a => a.id === trimmed);
+    if (byId) return byId.id;
+    const byTag = assets.find(a => a.tag === trimmed || a.serialNumber === trimmed);
+    return byTag?.id || trimmed;
+  };
+
+  const verifyAsset = async (assetInput: string) => {
+    if (!activeCycle || !assetInput.trim()) return;
+    setVerifyError(null);
+    try {
+      const assetId = resolveAssetId(assetInput);
+      await apiClient.post(`/audits/${activeCycle.id}/items`, {
+        assetId,
+        status: 'Verified',
+      });
+      setScanResult(assetInput.trim());
+      setManualAssetId('');
+      await syncState();
+    } catch (e) {
+      console.error('Failed to verify', e);
+      setVerifyError('Failed to verify asset. Check the asset ID and try again.');
+    }
+  };
+
+  const handleCloseCycle = async () => {
+    if (!activeCycle) return;
+    if (!window.confirm(`Close audit cycle "${activeCycle.name}"?`)) return;
+    try {
+      await apiClient.patch(`/audits/${activeCycle.id}/close`);
+      await syncState();
+    } catch (e) {
+      console.error('Failed to close audit cycle', e);
+    }
+  };
+
+  const handleStartCycle = async () => {
+    const name = `Audit Cycle ${new Date().toISOString().slice(0, 10)}`;
+    const today = new Date();
+    const end = new Date(today);
+    end.setMonth(end.getMonth() + 1);
+    try {
+      await apiClient.post('/audits', {
+        name,
+        startDate: today.toISOString(),
+        endDate: end.toISOString(),
+        auditor: user?.name || 'Admin',
+      });
+      await syncState();
+    } catch (e) {
+      console.error('Failed to start audit cycle', e);
+    }
+  };
 
   return (
     <div className="space-y-6 font-sans">
       <PageHeader
         title="Asset Compliance Audits"
         description="Verify physical inventory existence, check compliance parameters and log discrepancy reports."
+        actions={
+          !activeCycle ? (
+            <Button variant="primary" onClick={handleStartCycle}>Start Audit Cycle</Button>
+          ) : (
+            <Button variant="outline" onClick={handleCloseCycle}>Close Cycle</Button>
+          )
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Active Audit Tracker - Left 2 Columns */}
         <div className="lg:col-span-2 space-y-6">
           {activeCycle ? (
             <Card
@@ -41,7 +122,7 @@ export const Audit: React.FC = () => {
               headerActions={
                 <div className="flex items-center gap-3">
                   <StatusBadge status="In Progress" />
-                  <Button variant="primary" size="sm" onClick={() => { setIsScannerOpen(true); setScanResult(null); }} className="flex items-center gap-1.5">
+                  <Button variant="primary" size="sm" onClick={() => { setIsScannerOpen(true); setScanResult(null); setVerifyError(null); }} className="flex items-center gap-1.5">
                     <QrCode className="w-4 h-4" />
                     Scan QR
                   </Button>
@@ -62,11 +143,11 @@ export const Audit: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center select-none">
                   <div className="bg-gray-50 border border-[#dee2e6] rounded-btn p-3">
                     <span className="text-xs font-semibold text-[#6c757d] block mb-1">Target Assets</span>
-                    <span className="text-[20px] font-bold text-[#212529]">45</span>
+                    <span className="text-[20px] font-bold text-[#212529]">{targetAssets}</span>
                   </div>
                   <div className="bg-gray-50 border border-[#dee2e6] rounded-btn p-3">
                     <span className="text-xs font-semibold text-[#6c757d] block mb-1">Verified</span>
-                    <span className="text-[20px] font-bold text-[#198754]">20</span>
+                    <span className="text-[20px] font-bold text-[#198754]">{verifiedCount}</span>
                   </div>
                   <div className="bg-gray-50 border border-[#dee2e6] rounded-btn p-3">
                     <span className="text-xs font-semibold text-[#6c757d] block mb-1">Missing</span>
@@ -85,72 +166,73 @@ export const Audit: React.FC = () => {
             </Card>
           )}
 
-          {/* Discrepancy Logs */}
           <Card title="Discrepancy Investigation Logs">
             <Table
               data={discrepancyData}
+              emptyMessage="No discrepancies logged for the active audit cycle."
               columns={[
                 { header: 'Log ID', accessorKey: 'id' },
                 { header: 'Asset Name', accessorKey: 'assetName' },
                 { header: 'Discrepancy Type', accessorKey: 'type' },
                 { header: 'Status', accessorKey: 'status' },
-                { header: 'Assigned Auditor', accessorKey: 'reportedBy' }
+                { header: 'Assigned Auditor', accessorKey: 'reportedBy' },
               ]}
             />
           </Card>
         </div>
 
-        {/* Auditor List and Audit History - Right Column */}
         <div className="space-y-6">
           <Card title="Compliance Team">
             <div className="space-y-4 select-none">
-              <div className="flex items-center gap-3">
-                <Award className="w-5 h-5 text-[#6c757d]" />
-                <div>
-                  <h4 className="text-[14px] font-bold text-[#212529]">Robert Fox</h4>
-                  <p className="text-[11px] text-[#6c757d] font-medium">Head Auditor - IT Infrastructure</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Award className="w-5 h-5 text-[#6c757d]" />
-                <div>
-                  <h4 className="text-[14px] font-bold text-[#212529]">Darrell Steward</h4>
-                  <p className="text-[11px] text-[#6c757d] font-medium">Compliance Officer - Facilities</p>
-                </div>
-              </div>
+              {complianceTeam.length === 0 ? (
+                <p className="text-xs text-[#6c757d]">No compliance team members found.</p>
+              ) : (
+                complianceTeam.map(member => (
+                  <div key={member.id} className="flex items-center gap-3">
+                    <Award className="w-5 h-5 text-[#6c757d]" />
+                    <div>
+                      <h4 className="text-[14px] font-bold text-[#212529]">{member.name}</h4>
+                      <p className="text-[11px] text-[#6c757d] font-medium">{member.role} — {member.department}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
 
           <Card title="Historical Audit Results" className="max-h-[350px] overflow-y-auto">
             <div className="space-y-4">
-              {pastCycles.map(cycle => (
-                <div key={cycle.id} className="border-b border-[#dee2e6] pb-3 last:border-0 last:pb-0">
-                  <div className="flex justify-between items-start select-none">
-                    <h4 className="text-[14px] font-bold text-[#212529]">{cycle.name}</h4>
-                    <StatusBadge status="Completed" />
+              {pastCycles.length === 0 ? (
+                <p className="text-xs text-[#6c757d]">No completed audit cycles yet.</p>
+              ) : (
+                pastCycles.map(cycle => (
+                  <div key={cycle.id} className="border-b border-[#dee2e6] pb-3 last:border-0 last:pb-0">
+                    <div className="flex justify-between items-start select-none">
+                      <h4 className="text-[14px] font-bold text-[#212529]">{cycle.name}</h4>
+                      <StatusBadge status="Completed" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-2 text-center text-[11px] font-semibold text-[#6c757d]">
+                      <div className="bg-gray-50 border border-[#dee2e6] rounded py-1">
+                        <span>Missing</span>
+                        <span className="block font-bold text-[#dc3545]">{cycle.missingAssets}</span>
+                      </div>
+                      <div className="bg-gray-50 border border-[#dee2e6] rounded py-1">
+                        <span>Conflict</span>
+                        <span className="block font-bold text-[#ffc107]">{cycle.discrepancies}</span>
+                      </div>
+                      <div className="bg-gray-50 border border-[#dee2e6] rounded py-1">
+                        <span>Date</span>
+                        <span className="block font-bold text-gray-600">{cycle.endDate?.slice(0, 10)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mt-2 text-center text-[11px] font-semibold text-[#6c757d]">
-                    <div className="bg-gray-50 border border-[#dee2e6] rounded py-1">
-                      <span>Missing</span>
-                      <span className="block font-bold text-[#dc3545]">{cycle.missingAssets}</span>
-                    </div>
-                    <div className="bg-gray-50 border border-[#dee2e6] rounded py-1">
-                      <span>Conflict</span>
-                      <span className="block font-bold text-[#ffc107]">{cycle.discrepancies}</span>
-                    </div>
-                    <div className="bg-gray-50 border border-[#dee2e6] rounded py-1">
-                      <span>Date</span>
-                      <span className="block font-bold text-gray-600">{cycle.endDate}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </div>
       </div>
 
-      {/* QR Scanner Modal */}
       <Modal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} title="Scan Asset QR Code" description="Point camera at the asset QR tag or enter ID manually.">
         <div className="space-y-6 select-none">
           {scanResult ? (
@@ -162,38 +244,30 @@ export const Audit: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Mock Camera View */}
               <div className="w-full aspect-video bg-black rounded-btn relative overflow-hidden flex items-center justify-center">
                 <div className="absolute inset-0 border-[3px] border-white/20 m-8 rounded" />
                 <div className="absolute w-full h-[2px] bg-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-[scan_2s_ease-in-out_infinite]" />
                 <div className="text-white/50 flex flex-col items-center gap-2">
                   <ScanLine className="w-8 h-8" />
-                  <span className="text-sm font-semibold">Camera Active</span>
+                  <span className="text-sm font-semibold">Enter asset ID below to verify</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <hr className="flex-1 border-[#dee2e6]" />
-                <span className="text-xs font-bold text-[#adb5bd] uppercase tracking-wider">Or</span>
-                <hr className="flex-1 border-[#dee2e6]" />
-              </div>
+              {verifyError && (
+                <p className="text-sm text-red-600 font-semibold">{verifyError}</p>
+              )}
 
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Input 
-                    label="Manual Entry" 
-                    placeholder="Enter Asset ID (e.g. AST-001)" 
-                    value={manualAssetId} 
-                    onChange={(e) => setManualAssetId(e.target.value)} 
+                  <Input
+                    label="Manual Entry"
+                    placeholder="Enter Asset ID or Tag"
+                    value={manualAssetId}
+                    onChange={(e) => setManualAssetId(e.target.value)}
                   />
                 </div>
                 <div className="pt-6">
-                  <Button variant="primary" onClick={() => {
-                    if (manualAssetId.trim()) {
-                      setScanResult(manualAssetId);
-                      setManualAssetId('');
-                    }
-                  }}>Verify</Button>
+                  <Button variant="primary" onClick={() => verifyAsset(manualAssetId)}>Verify</Button>
                 </div>
               </div>
             </>

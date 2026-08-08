@@ -56,47 +56,45 @@ function App() {
                 }
               >
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route 
-                  path="/organization" 
-                  element={
-                    <ProtectedRoute allowedRoles={['Admin']}>
-                      <Organization />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/users" 
-                  element={
-                    <ProtectedRoute allowedRoles={['Admin']}>
-                      <UserManagement />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/assets" element={<Assets />} />
-                <Route path="/allocation" element={<AllocationPage />} />
-                <Route path="/booking" element={<Booking />} />
-                <Route path="/maintenance" element={<Maintenance />} />
-                <Route 
-                  path="/audit" 
-                  element={
-                    <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head']}>
-                      <Audit />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/reports" 
-                  element={
-                    <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head']}>
-                      <Reports />
-                    </ProtectedRoute>
-                  } 
-                />
+
+                {/* Admin only */}
+                <Route path="/organization" element={
+                  <ProtectedRoute allowedRoles={['Admin']}><Organization /></ProtectedRoute>
+                } />
+                <Route path="/users" element={
+                  <ProtectedRoute allowedRoles={['Admin']}><UserManagement /></ProtectedRoute>
+                } />
+
+                {/* Admin + Asset Manager */}
+                <Route path="/assets" element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Asset Manager']}><Assets /></ProtectedRoute>
+                } />
+                <Route path="/allocation" element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Asset Manager']}><AllocationPage /></ProtectedRoute>
+                } />
+
+                {/* Admin + Asset Manager + Department Head + Employee */}
+                <Route path="/booking" element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head', 'Employee']}><Booking /></ProtectedRoute>
+                } />
+                <Route path="/maintenance" element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head', 'Employee']}><Maintenance /></ProtectedRoute>
+                } />
+
+                {/* Admin + Asset Manager + Department Head */}
+                <Route path="/audit" element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head']}><Audit /></ProtectedRoute>
+                } />
+                <Route path="/reports" element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head']}><Reports /></ProtectedRoute>
+                } />
+
+                {/* All authenticated users */}
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/profile" element={<Profile />} />
 
-                {/* Redirects */}
+                {/* Fallback */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Routes>

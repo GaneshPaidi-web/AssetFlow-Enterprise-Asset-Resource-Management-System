@@ -7,22 +7,93 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  role         String      @default("Employee") // Admin, Asset Manager, Department Head, Employee
+  status       String      @default("Active")   // Active, Inactive
+  site         String      @default("Main Office")
+  avatar       String      @default("")
+  location     String      @default("")
+  phone        String      @default("")
+  latitude     Float?
+  longitude    Float?
+  
+  departmentId String?
+  department   Department? @relation("DeptEmployees", fields: [departmentId], references: [id])
+  
+  managedDepartments Department[] @relation("DeptManager")
+  allocations        Allocation[]
+  bookings           Booking[]
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Department {
+  id                 String       @id @default(uuid())
+  name               String       @unique
+  code               String?
+  status             String       @default("Active") // Active, Inactive
+  
+  managerId          String?
+  manager            User?        @relation("DeptManager", fields: [managerId], references: [id])
+  
+  parentDepartmentId String?
+  parentDepartment   Department?  @relation("DeptHierarchy", fields: [parentDepartmentId], references: [id])
+  childDepartments   Department[] @relation("DeptHierarchy")
+  
+  employees          User[]       @relation("DeptEmployees")
+  assets             Asset[]
+  allocations        Allocation[]
+  
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Category {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  description     String?
+  warrantyPeriod  Int?     // optional for Electronics, etc.
+  depreciationRate Float?  // optional depreciation rate
+  
+  assets          Asset[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Asset {
   id            String   @id @default(uuid())
   name          String
   serialNumber  String   @unique
-  category      String
-  department    String
-  status        String   @default("Available") // Available, Allocated, Reserved, Maintenance, Disposed, Lost
+  tag           String   @unique // auto-generated Asset Tag, e.g. AF-0001
+  status        String   @default("Available") // Available, Allocated, Reserved, Under Maintenance, Lost, Retired, Disposed
   purchaseDate  DateTime
   purchaseValue Float
   location      String
   qrCode        String?
-
+  condition     String   @default("Good")
+  isShared      Boolean  @default(false)
+  photoUrl      String?
+  documentUrl   String?
+  
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+  categoryName  String    // for compatibility with text-based searches
+  
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  departmentName String    // for compatibility with text-based searches
+  
   allocations   Allocation[]
   transfers     TransferRequest[]
   maintenance   MaintenanceRequest[]
   bookings      Booking[]
+  auditItems    AuditItem[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -34,12 +105,21 @@ model Allocation {
   asset            Asset    @relation(fields: [assetId], references: [id])
   assetName        String
   serialNumber     String
-  allocatedTo      String
-  allocatedToEmail String
-  department       String
-  allocatedDate    DateTime
-  status           String   @default("Active") // Active, Returned
-
+  
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id])
+  allocatedTo      String   // name compatibility
+  allocatedToEmail String   // email compatibility
+  
+  departmentId     String?
+  department       Department? @relation(fields: [departmentId], references: [id])
+  departmentName   String   // department name compatibility
+  
+  allocatedDate    DateTime @default(now())
+  dueDate          DateTime? // Expected Return Date
+  status           String   @default("Active") // Active, Returned, Pending Return
+  checkInNotes     String?  // notes captured on return
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -47,16 +127,16 @@ model Allocation {
 model TransferRequest {
   id             String   @id @default(uuid())
   assetId        String
-  asset          Asset    @relation(fields: [assetId], references: [id])
+  asset            Asset    @relation(fields: [assetId], references: [id])
   assetName      String
   serialNumber   String
   fromEmployee   String
   toEmployee     String
   fromDepartment String
   toDepartment   String
-  requestedDate  DateTime
+  requestedDate  DateTime @default(now())
   status         String   @default("Pending") // Pending, Approved, Rejected
-
+  
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -64,38 +144,55 @@ model TransferRequest {
 model MaintenanceRequest {
   id             String   @id @default(uuid())
   assetId        String
-  asset          Asset    @relation(fields: [assetId], references: [id])
+  asset            Asset    @relation(fields: [assetId], references: [id])
   assetName      String
   description    String
-  priority       String // Low, Medium, High
-  status         String   @default("Pending") // Pending, In Progress, Completed
-  requestedDate  DateTime
-  facilityHealth String
-
+  priority       String   // Low, Medium, High
+  status         String   @default("Pending") // Pending, In Progress, Completed, Approved, Rejected
+  requestedDate  DateTime @default(now())
+  facilityHealth String   @default("Normal")
+  photoUrl       String?
+  technician     String?  // technician assigned
+  
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
 
 model AuditCycle {
-  id             String   @id @default(uuid())
+  id             String      @id @default(uuid())
   name           String
   startDate      DateTime
   endDate        DateTime
   auditor        String
-  status         String   @default("Pending") // Pending, In Progress, Completed
-  progress       Float    @default(0)
-  missingAssets  Int      @default(0)
-  discrepancies  Int      @default(0)
+  status         String      @default("Pending") // Pending, In Progress, Completed
+  progress       Float       @default(0)
+  missingAssets  Int         @default(0)
+  discrepancies  Int         @default(0)
+  
+  auditItems     AuditItem[]
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model AuditItem {
+  id           String     @id @default(uuid())
+  auditCycleId String
+  auditCycle   AuditCycle @relation(fields: [auditCycleId], references: [id], onDelete: Cascade)
+  assetId      String
+  asset        Asset      @relation(fields: [assetId], references: [id])
+  status       String     @default("Pending") // Verified, Missing, Damaged, Pending
+  notes        String?
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Notification {
   id        String   @id @default(uuid())
   title     String
   message   String
-  type      String // info, success, warning, error
+  type      String   // info, success, warning, error
   isRead    Boolean  @default(false)
   
   createdAt DateTime @default(now())
@@ -106,11 +203,24 @@ model Booking {
   assetId   String
   asset     Asset    @relation(fields: [assetId], references: [id])
   assetName String
+  
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
   bookedBy  String
+  
   startDate DateTime
   endDate   DateTime
-  status    String   @default("Confirmed") // Confirmed, Cancelled
-
+  status    String   @default("Confirmed") // Confirmed, Cancelled, Upcoming, Ongoing, Completed
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  action      String
+  description String
+  userId      String?
+  userName    String?
+  createdAt   DateTime @default(now())
 }

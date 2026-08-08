@@ -5,5 +5,7 @@ const allocationController = require('../controllers/allocationController');
 router.get('/', allocationController.getAllAllocations);
 router.post('/', allocationController.createAllocation);
 router.post('/:id/return', allocationController.returnAllocation);
+router.patch('/:id/return', allocationController.returnAllocation);
+router.patch('/:id/initiate-return', allocationController.initiateReturn);
 
 module.exports = router;

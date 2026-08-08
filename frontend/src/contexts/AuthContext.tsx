@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { User } from '../types';
-import apiClient from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
+import { mergeAvatar, saveAvatar, readFileAsDataUrl } from '../utils/avatarStorage';
 
 interface AuthContextType {
   user: User | null;
@@ -8,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshProfile: () => Promise<void>;
   updateProfile: (name: string, password: string, phone: string, location: string, latitude: number | null, longitude: number | null) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
   isLoading: boolean;
@@ -22,15 +24,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Restore session from localStorage on mount
+  const persistUser = useCallback((userData: User) => {
+    const withAvatar = mergeAvatar(userData);
+    setUser(withAvatar);
+    localStorage.setItem('user', JSON.stringify(withAvatar));
+    return withAvatar;
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    const savedToken = localStorage.getItem('token');
+    if (!savedToken) return;
+
+    try {
+      const res = await apiClient.get<User>('/users/profile');
+      persistUser(res.data);
+    } catch (err) {
+      console.error('Failed to refresh profile', err);
+    }
+  }, [persistUser]);
+
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
     if (savedToken && savedUser) {
       setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      persistUser(JSON.parse(savedUser));
+      refreshProfile();
     }
-  }, []);
+  }, [persistUser, refreshProfile]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -39,11 +60,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await apiClient.post('/auth/login', { email, password });
       const { token: receivedToken, ...userData } = res.data;
       setToken(receivedToken);
-      setUser(userData);
       localStorage.setItem('token', receivedToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+      persistUser(userData);
+      await refreshProfile();
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      const message = err.response?.data?.error || err.response?.data?.message || 'Login failed. Please check your credentials.';
       setError(message);
       throw new Error(message);
     } finally {
@@ -58,11 +79,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await apiClient.post('/auth/signup', { name, email, password });
       const { token: receivedToken, ...userData } = res.data;
       setToken(receivedToken);
-      setUser(userData);
       localStorage.setItem('token', receivedToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+      persistUser(userData);
+      await refreshProfile();
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Signup failed. Please try again.';
+      const message = err.response?.data?.error || err.response?.data?.message || 'Signup failed. Please try again.';
       setError(message);
       throw new Error(message);
     } finally {
@@ -74,11 +95,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
-      const res = await apiClient.put('/users/profile', { name, password, phone, location, latitude, longitude });
-      setUser(res.data);
-      localStorage.setItem('user', JSON.stringify(res.data));
+      const payload: Record<string, unknown> = { name, phone, location, latitude, longitude };
+      if (password) payload.password = password;
+
+      const res = await apiClient.put<User>('/users/profile', payload);
+      persistUser(res.data);
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Profile update failed.';
+      const message = err.response?.data?.error || err.response?.data?.message || 'Profile update failed.';
       setError(message);
       throw new Error(message);
     } finally {
@@ -87,18 +110,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const uploadAvatar = async (file: File) => {
+    if (!user) {
+      throw new Error('You must be logged in to upload an avatar.');
+    }
+
     setIsLoading(true);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      const res = await apiClient.post('/users/profile/avatar', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setUser(res.data);
-      localStorage.setItem('user', JSON.stringify(res.data));
+      const dataUrl = await readFileAsDataUrl(file);
+      saveAvatar(user.id, dataUrl);
+      persistUser({ ...user, avatar: dataUrl });
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Avatar upload failed.';
+      const message = err.message || 'Avatar upload failed.';
       setError(message);
       throw new Error(message);
     } finally {
@@ -114,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, signup, logout, updateProfile, uploadAvatar, isLoading, error }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, refreshProfile, updateProfile, uploadAvatar, isLoading, error }}>
       {children}
     </AuthContext.Provider>
   );

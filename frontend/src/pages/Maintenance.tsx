@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
@@ -23,7 +23,7 @@ const maintenanceSchema = z.object({
 type MaintenanceFormSchema = z.infer<typeof maintenanceSchema>;
 
 export const Maintenance: React.FC = () => {
-  const { maintenance, assets, requestMaintenance, approveMaintenance, rejectMaintenance, resolveMaintenance } = useAppState();
+  const { maintenance, assets, requestMaintenance, approveMaintenance, rejectMaintenance, resolveMaintenance, allocations } = useAppState();
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,6 +77,20 @@ export const Maintenance: React.FC = () => {
   };
 
   // KPIs
+  const facilityHealth = assets.length
+    ? Math.round(((assets.length - assets.filter(a => String(a.status).includes('Maintenance')).length) / assets.length) * 1000) / 10
+    : 100;
+
+  const siteHealth = useMemo(() => {
+    const sites = [...new Set(assets.map(a => a.location).filter(Boolean))];
+    return sites.slice(0, 3).map(site => {
+      const siteAssets = assets.filter(a => a.location === site);
+      const unhealthy = siteAssets.filter(a => String(a.status).includes('Maintenance')).length;
+      const value = siteAssets.length ? Math.round(((siteAssets.length - unhealthy) / siteAssets.length) * 1000) / 10 : 100;
+      return { label: site, value, color: value >= 95 ? '#198754' : value >= 85 ? '#ffc107' : '#dc3545' };
+    });
+  }, [assets]);
+
   const totalRequests = maintenance.length;
   const countPending = maintenance.filter(m => m.status === 'Pending').length;
   const countInProgress = maintenance.filter(m => m.status === 'In Progress').length;
@@ -85,9 +99,13 @@ export const Maintenance: React.FC = () => {
   // Filter assets for the raise ticket form
   const repairableAssets = assets.filter(a => a.status !== 'Maintenance');
 
-  // Determine which tickets to show:
-  // Employee → only their own (if userId matches, or fallback to all for now since we don't store userId on ticket)
-  const visibleMaintenance = maintenance;
+  // Filter tickets — employees see tickets for assets allocated to them
+  const visibleMaintenance = isEmployee && user?.name
+    ? maintenance.filter(m => {
+        const alloc = allocations.find(a => a.assetId === m.assetId && a.status === 'Active');
+        return alloc?.allocatedTo === user.name;
+      })
+    : maintenance;
 
   const filteredRequests = visibleMaintenance.filter(m =>
     m.assetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -324,27 +342,27 @@ export const Maintenance: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Heart className="w-8 h-8 text-[#dc3545] fill-[#dc3545]/10 stroke-[1.75]" />
                 <div>
-                  <h4 className="text-[20px] font-bold text-[#212529]">94.2%</h4>
+                  <h4 className="text-[20px] font-bold text-[#212529]">{facilityHealth}%</h4>
                   <p className="text-xs text-[#6c757d] font-semibold">Overall Corporate Facility Health</p>
                 </div>
               </div>
 
               <div className="space-y-3.5 border-t border-[#dee2e6] pt-4">
-                {[
-                  { label: 'San Francisco HQ', value: 98.1, color: '#198754' },
-                  { label: 'London Server Hub', value: 91.4, color: '#ffc107' },
-                  { label: 'New York Workspace', value: 93.0, color: '#198754' },
-                ].map(site => (
-                  <div key={site.label}>
-                    <div className="flex items-center justify-between text-xs font-bold text-[#495057] mb-1">
-                      <span>{site.label}</span>
-                      <span>{site.value}%</span>
+                {siteHealth.length === 0 ? (
+                  <p className="text-xs text-[#6c757d]">No site data available.</p>
+                ) : (
+                  siteHealth.map(site => (
+                    <div key={site.label}>
+                      <div className="flex items-center justify-between text-xs font-bold text-[#495057] mb-1">
+                        <span>{site.label}</span>
+                        <span>{site.value}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${site.value}%`, backgroundColor: site.color }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${site.value}%`, backgroundColor: site.color }} />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </Card>

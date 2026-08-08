@@ -5,6 +5,7 @@ import * as z from 'zod';
 import { Link } from 'react-router-dom';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { apiClient } from '../../services/apiClient';
 import { Shield, CheckCircle } from 'lucide-react';
 
 const forgotPasswordSchema = z.object({
@@ -15,14 +16,20 @@ type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>;
 
 export const ForgotPassword: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ForgotPasswordSchema>({
     resolver: zodResolver(forgotPasswordSchema)
   });
 
   const onSubmit = async (data: ForgotPasswordSchema) => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    console.log('Forgot password request for:', data.email);
-    setIsSuccess(true);
+    setError(null);
+    try {
+      await apiClient.post('/auth/forgot-password', { email: data.email });
+      setIsSuccess(true);
+    } catch (e: unknown) {
+      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(message || 'Failed to send reset link. Please try again.');
+    }
   };
 
   return (
@@ -52,6 +59,9 @@ export const ForgotPassword: React.FC = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {error && (
+              <p className="text-sm text-red-600 font-semibold">{error}</p>
+            )}
             <Input
               label="Email Address"
               placeholder="name@company.com"

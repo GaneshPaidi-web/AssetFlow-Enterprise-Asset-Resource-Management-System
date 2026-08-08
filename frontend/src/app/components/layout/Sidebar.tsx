@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Building2,
   Package,
+  TrendingUp,
   Calendar,
   Wrench,
   ClipboardCheck,
@@ -13,20 +14,22 @@ import {
   Bell,
   Settings,
   User,
+  Users,
   LogOut
 } from 'lucide-react';
 
 const menuItems = [
-  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
-  { name: 'Organization Setup', path: '/organization', icon: Building2, allowedRoles: ['Admin'] },
-  { name: 'User Management', path: '/users', icon: User, allowedRoles: ['Admin'] },
-  { name: 'Assets', path: '/assets', icon: Package, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
-  { name: 'Booking', path: '/booking', icon: Calendar, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
-  { name: 'Maintenance', path: '/maintenance', icon: Wrench, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
-  { name: 'Audit', path: '/audit', icon: ClipboardCheck, allowedRoles: ['Admin', 'Asset Manager', 'Department Head'] },
-  { name: 'Reports', path: '/reports', icon: BarChart3, allowedRoles: ['Admin', 'Asset Manager', 'Department Head'] },
-  { name: 'Notifications', path: '/notifications', icon: Bell, badge: true, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
-  { name: 'Settings', path: '/settings', icon: Settings, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] }
+  { name: 'Dashboard',         path: '/dashboard',   icon: LayoutDashboard, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
+  { name: 'Organization Setup',path: '/organization', icon: Building2,       allowedRoles: ['Admin'] },
+  { name: 'User Management',   path: '/users',        icon: Users,           allowedRoles: ['Admin'] },
+  { name: 'Assets',            path: '/assets',       icon: Package,         allowedRoles: ['Admin', 'Asset Manager'] },
+  { name: 'Allocation',        path: '/allocation',   icon: TrendingUp,      allowedRoles: ['Admin', 'Asset Manager'] },
+  { name: 'Booking',           path: '/booking',      icon: Calendar,        allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
+  { name: 'Maintenance',       path: '/maintenance',  icon: Wrench,          allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
+  { name: 'Audit',             path: '/audit',        icon: ClipboardCheck,  allowedRoles: ['Admin', 'Asset Manager', 'Department Head'] },
+  { name: 'Reports',           path: '/reports',      icon: BarChart3,       allowedRoles: ['Admin', 'Asset Manager', 'Department Head'] },
+  { name: 'Notifications',     path: '/notifications',icon: Bell,  badge: true, allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
+  { name: 'Settings',          path: '/settings',     icon: Settings,        allowedRoles: ['Admin', 'Asset Manager', 'Department Head', 'Employee'] },
 ];
 
 export const Sidebar: React.FC = () => {
